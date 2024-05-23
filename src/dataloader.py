@@ -8,7 +8,8 @@ import numpy as np
 from enum import Enum
 from torch.utils.data import Dataset
 from torchvision import transforms
-from images_framework.alignment.students_landmarks.src.transformations import CropBbox, Occlusion, Illumination, Blur, ImgPermute
+from scipy.spatial.transform import Rotation
+from images_framework.alignment.students_landmarks.src.transformations import Illumination, CropBbox, ImgPermute
 
 
 class Mode(Enum):
@@ -21,9 +22,10 @@ class MyDataset(Dataset):
     """
     Create a dataset class for our head pose estimation data sets.
     """
-    def __init__(self, anns, database, image_size, mode: Mode):
+    def __init__(self, anns, database, width, height, mode: Mode):
         self.database = database
-        self.image_size = image_size
+        self.width = width
+        self.height = height
         self.mode = mode
         # Set data information
         self.img_indices, self.obj_indices, self.filepaths, self.bboxes, self.headpose = [], [], [], [], []
@@ -44,11 +46,12 @@ class MyDataset(Dataset):
         # Load image
         # This is memory efficient because all the images are not stored in the memory at once but read as required
         image = cv2.imread(self.filepaths[idx], cv2.IMREAD_COLOR)
-        sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': self.headpose[idx]}
+        euler = Rotation.from_matrix(self.headpose[idx]).as_euler('YXZ', degrees=True)
+        sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler}
         # Composes several transforms together
         if self.mode == Mode.TRAIN:
-            ops = [Occlusion(), Illumination(), Blur(), CropBbox(self.image_size), ImgPermute()]
+            ops = [Illumination(), CropBbox(self.width, self.height, 0.3), ImgPermute()]
         else:
-            ops = [CropBbox(self.image_size), ImgPermute()]
+            ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         sample = transforms.Compose(ops)(sample)
         return sample

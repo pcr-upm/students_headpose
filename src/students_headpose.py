@@ -51,8 +51,8 @@ class StudentsHeadpose(Alignment):
         from pytorch_lightning import loggers as pl_loggers
         from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
         # Prepare dataloaders
-        dataset_train = MyDataset(anns_train, self.database, (self.width, self.height), Mode.TRAIN)
-        dataset_valid = MyDataset(anns_valid, self.database, (self.width, self.height), Mode.VALID)
+        dataset_train = MyDataset(anns_train, self.database, self.width, self.height, Mode.TRAIN)
+        dataset_valid = MyDataset(anns_valid, self.database, self.width, self.height, Mode.VALID)
         drop_last = (len(dataset_train) % self.batch_size) == 1  # discard a last iteration with a single sample
         dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=drop_last)
         dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
@@ -85,12 +85,12 @@ class StudentsHeadpose(Alignment):
     def process(self, ann, pred):
         from scipy.spatial.transform import Rotation
         # Prepare dataloader
-        dataset_test = MyDataset([pred], self.database, (self.width, self.height), Mode.TEST)
+        dataset_test = MyDataset([pred], self.database, self.width, self.height, Mode.TEST)
         dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         with torch.no_grad():
             for batch in dl_test:
                 # Generate prediction
-                yaw, pitch, roll = self.model(batch['img'].float().to(self.device))
+                euler = self.model(batch['img'].float().to(self.device))
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
-                obj_pred.headpose = Rotation.from_euler('XYZ', [pitch, yaw, roll], degrees=True).as_matrix()
+                obj_pred.headpose = Rotation.from_euler('YXZ', euler, degrees=True).as_matrix()

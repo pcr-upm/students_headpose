@@ -46,27 +46,28 @@ class ResNetClassifier(pl.LightningModule):
         return self.optimizer(self.parameters(), lr=self.lr)
 
     def _step(self, batch):
-        x, y = batch
-        outputs = self.model(x)
-        loss = self.loss_fn(outputs, y)
-        mae = self.mae(outputs, y)
+        inputs = batch['img'].float()
+        targets = batch['headpose'].float()
+        outputs = self.model(inputs)
+        loss = self.loss_fn(outputs, targets)
+        mae = self.mae(outputs, targets)
         return loss, mae
 
     def training_step(self, batch, batch_idx):
         loss, mae = self._step(batch)
         # Perform logging
-        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('train_mae', mae, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_loss', loss, batch_size=self.batch_size, on_step=False, on_epoch=True)
+        self.log('train_mae', mae, batch_size=self.batch_size, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, mae = self._step(batch)
         # Perform logging
-        self.log('val_loss', loss, on_epoch=True, prog_bar=False, logger=True)
-        self.log('val_mae', mae, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_loss', loss, batch_size=self.batch_size, on_step=False, on_epoch=True)
+        self.log('val_mae', mae, batch_size=self.batch_size, on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
         loss, mae = self._step(batch)
         # Perform logging
-        self.log('test_loss', loss, on_step=True, prog_bar=True, logger=True)
-        self.log('test_mae', mae, on_step=True, prog_bar=True, logger=True)
+        self.log('test_loss', loss, batch_size=self.batch_size, on_step=False, on_epoch=True)
+        self.log('test_mae', mae, batch_size=self.batch_size, on_step=False, on_epoch=True)
