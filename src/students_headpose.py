@@ -23,7 +23,6 @@ class StudentsHeadpose(Alignment):
         self.path = path
         self.model = None
         self.device = None
-        self.backbone = None
         self.width = 256
         self.height = 256
 
@@ -59,7 +58,7 @@ class StudentsHeadpose(Alignment):
         dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         # Train the model
         print('Train model')
-        model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
+        model_path = self.path + 'data/' + self.database + '/'
         ckpt_path = os.path.join(model_path+'ckpt/', 'last.ckpt')
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/'), PCRLogger()]
         checkpoint_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
@@ -70,15 +69,16 @@ class StudentsHeadpose(Alignment):
     def load(self, mode):
         import torchsummary
         from images_framework.src.constants import Modes
+        from images_framework.alignment.students_headpose.src.resnet_classifier import ResNetClassifier
         # Set up the neural network to train
         print('Load model')
-        self.model = ...
+        self.model = ResNetClassifier(num_classes=3, resnet_version=50, optimizer='adam', lr=1e-3, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device='cpu')
         # Set up the neural network to test
         if mode is Modes.TEST:
-            model_path = self.path + 'data/' + self.database + '/' + self.backbone + '/'
+            model_path = self.path + 'data/' + self.database + '/'
             print('Loading model from {}'.format(model_path))
-            self.model = ...
+            self.model = self.model.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'))
             self.model.to(self.device)
             self.model.eval()
 
@@ -88,8 +88,9 @@ class StudentsHeadpose(Alignment):
         dataset_test = MyDataset([pred], self.database, (self.width, self.height), Mode.TEST)
         dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         with torch.no_grad():
-            for index, batch in enumerate(dl_test):
+            for batch in dl_test:
                 # Generate prediction
-                output = self.model(batch['img'].float().to(self.device))
+                yaw, pitch, roll = self.model(batch['img'].float().to(self.device))
                 # Save prediction
+                obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
                 obj_pred.headpose = Rotation.from_euler('XYZ', [pitch, yaw, roll], degrees=True).as_matrix()
