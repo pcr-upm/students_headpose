@@ -78,7 +78,7 @@ class StudentsHeadpose(Alignment):
         if mode is Modes.TEST:
             model_path = self.path + 'data/' + self.database + '/'
             print('Loading model from {}'.format(model_path))
-            self.model = self.model.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=113-val_loss=0.00006.ckpt'))
+            self.model = ResNetClassifier.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=52-val_loss=44.04668.ckpt'), num_classes=3, resnet_version=50)
             self.model.to(self.device)
             self.model.eval()
 
@@ -90,7 +90,7 @@ class StudentsHeadpose(Alignment):
         with torch.no_grad():
             for batch in dl_test:
                 # Generate prediction
-                euler = self.model(batch['img'].float().to(self.device))
+                euler = self.model(batch['img'].float().to(self.device)).squeeze().cpu().numpy()
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
                 obj_pred.headpose = Rotation.from_euler('YXZ', euler, degrees=True).as_matrix()
