@@ -10,8 +10,8 @@ RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 # Download the computer vision framework
 RUN git clone git@github.com:pcr-upm/images_framework.git images_framework
-RUN git clone git@github.com:pcr-upm/students_landmarks.git images_framework/alignment/students_landmarks
-ADD data /images_framework/alignment/students_landmarks/data
+RUN git clone git@github.com:pcr-upm/students_headpose.git images_framework/alignment/students_headpose
+ADD data /images_framework/alignment/students_headpose/data
 
 # Copy the repository from the previous image
 FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
