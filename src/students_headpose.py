@@ -78,7 +78,7 @@ class StudentsHeadpose(Alignment):
         if mode is Modes.TEST:
             model_path = self.path + 'data/' + self.database + '/'
             print('Loading model from {}'.format(model_path))
-            self.model = ResNetClassifier.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'epoch=52-val_loss=44.04668.ckpt'), num_classes=3, resnet_version=50)
+            self.model = ResNetClassifier.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=3, resnet_version=50)
             self.model.to(self.device)
             self.model.eval()
 

@@ -132,12 +132,12 @@ def main():
 
     # Load vision components
     composite = Composite()
-    sr = StudentsHeadpose('images_framework/alignment/students_headpose/')
-    composite.add(sr)
+    sa = StudentsHeadpose('images_framework/alignment/students_headpose/')
+    composite.add(sa)
     composite.parse_options(unknown)
     composite.load(Modes.TEST)
-    dirname = 'output/images/'
     viewer = Viewer('students_headpose_test')
+    dirname = 'images_framework/output/images/'
     Path(dirname).mkdir(parents=True, exist_ok=True)
 
     # Process frame and show results
