@@ -40,7 +40,7 @@ def main():
     composite.parse_options(unknown)
     anns = load_annotations(anns_file)
     composite.load(Modes.TRAIN)
-    anns_train, anns_valid = train_test_split(anns, test_size=0.1, random_state=1, shuffle=True)
+    anns_train, anns_valid = train_test_split(anns, test_size=0.2, random_state=1, shuffle=True)
     composite.train(anns_train, anns_valid)
 
 

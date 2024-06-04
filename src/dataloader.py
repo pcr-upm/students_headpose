@@ -6,10 +6,13 @@ __email__ = 'roberto.valle@upm.es'
 import cv2
 import numpy as np
 from enum import Enum
+import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+from torchvision.transforms import v2
+from torchvision.io import read_image
 from scipy.spatial.transform import Rotation
-from images_framework.alignment.students_headpose.src.transformations import Illumination, CropBbox, ImgPermute
+from images_framework.alignment.students_headpose.src.transformations import Illumination, CropBbox, ImgPermute, Resize
 
 
 class Mode(Enum):
@@ -46,12 +49,13 @@ class MyDataset(Dataset):
         # Load image
         # This is memory efficient because all the images are not stored in the memory at once but read as required
         image = cv2.imread(self.filepaths[idx], cv2.IMREAD_COLOR)
+        b,g,r = cv2.split(image)           # get b, g, r
+        image = cv2.merge([r,g,b])     # switch it to r, g, b
         euler = Rotation.from_matrix(self.headpose[idx]).as_euler('YXZ', degrees=True)
-        sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler}
-        # Composes several transforms together
+        sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler[:2]}
         if self.mode == Mode.TRAIN:
-            ops = [Illumination(), CropBbox(self.width, self.height, 0.3), ImgPermute()]
+            ops = [Resize(self.width, self.height), Illumination(), ImgPermute()] #[CropBbox(self.width, self.height, 0.3), Illumination(), ImgPermute()]
         else:
-            ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
+            ops = [Resize(self.width, self.height), ImgPermute()] #[CropBbox(self.width, self.height, 0.3), ImgPermute()] 
         sample = transforms.Compose(ops)(sample)
         return sample
