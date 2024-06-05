@@ -23,8 +23,8 @@ class StudentsHeadpose(Alignment):
         self.path = path
         self.model = None
         self.device = None
-        self.width = 256
-        self.height = 256
+        self.width = 224
+        self.height = 224
 
     def parse_options(self, params):
         unknown = super().parse_options(params)
@@ -63,16 +63,18 @@ class StudentsHeadpose(Alignment):
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/'), PCRLogger()]
         checkpoint_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
         early_stopping = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
-        trainer = pl.Trainer(logger=loggers, accelerator='auto', devices='auto', enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stopping])
+        trainer = pl.Trainer(logger=loggers, accelerator='auto', devices='auto', enable_progress_bar=True, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stopping])
         trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
 
     def load(self, mode):
         import torchsummary
         from images_framework.src.constants import Modes
         from images_framework.alignment.students_headpose.src.resnet_classifier import ResNetClassifier
+        from images_framework.alignment.students_headpose.src.efficientnet_classifier import EfficientnetClassifier
         # Set up the neural network to train
         print('Load model')
-        self.model = ResNetClassifier(num_classes=3, resnet_version=50, optimizer='adam', lr=1e-3, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+        torch.set_float32_matmul_precision('medium')
+        self.model = EfficientnetClassifier(num_classes=2, version=0, optimizer='adam', lr=1e-1, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device='cpu')
         # Set up the neural network to test
         if mode is Modes.TEST:

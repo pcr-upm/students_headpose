@@ -26,6 +26,14 @@ class Illumination:
         sample['img'] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
         return sample
 
+class Resize:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+
+    def __call__(self, sample):
+        sample['img'] = cv2.resize(sample['img'], (self.width, self.height), interpolation= cv2.INTER_LINEAR)
+        return sample
 
 class CropBbox:
     def __init__(self, width, height, bbox_scale):
