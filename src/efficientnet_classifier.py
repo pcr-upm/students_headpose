@@ -31,7 +31,6 @@ class EfficientnetClassifier(pl.LightningModule):
         self.model = self.efficientnets[version](pretrained=transfer)
         # Replace old FC layer with Identity, so we can train our own
         num_ftrs = self.model.classifier[1].in_features
-        print(num_ftrs)
         self.model.classifier[1] = nn.Linear(in_features=num_ftrs, out_features=num_classes)
         # Option to only tune the fully-connected layers
         if tune_fc_only:

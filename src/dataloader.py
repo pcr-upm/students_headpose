@@ -49,13 +49,11 @@ class MyDataset(Dataset):
         # Load image
         # This is memory efficient because all the images are not stored in the memory at once but read as required
         image = cv2.imread(self.filepaths[idx], cv2.IMREAD_COLOR)
-        b,g,r = cv2.split(image)           # get b, g, r
-        image = cv2.merge([r,g,b])     # switch it to r, g, b
         euler = Rotation.from_matrix(self.headpose[idx]).as_euler('YXZ', degrees=True)
-        sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler[:2]}
+        sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler}
         if self.mode == Mode.TRAIN:
-            ops = [Resize(self.width, self.height), Illumination(), ImgPermute()] #[CropBbox(self.width, self.height, 0.3), Illumination(), ImgPermute()]
+            ops = [CropBbox(self.width, self.height, 0.3), Illumination(), ImgPermute()]
         else:
-            ops = [Resize(self.width, self.height), ImgPermute()] #[CropBbox(self.width, self.height, 0.3), ImgPermute()] 
+            ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         sample = transforms.Compose(ops)(sample)
         return sample

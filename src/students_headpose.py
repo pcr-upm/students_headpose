@@ -74,13 +74,13 @@ class StudentsHeadpose(Alignment):
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
-        self.model = EfficientnetClassifier(num_classes=2, version=0, optimizer='adam', lr=1e-1, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+        self.model = ResNetClassifier(num_classes=3, resnet_version=18, optimizer='adam', lr=1e-4, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device='cpu')
         # Set up the neural network to test
         if mode is Modes.TEST:
             model_path = self.path + 'data/' + self.database + '/'
             print('Loading model from {}'.format(model_path))
-            self.model = ResNetClassifier.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=3, resnet_version=50)
+            self.model = ResNetClassifier.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=3, resnet_version=18)
             self.model.to(self.device)
             self.model.eval()
 

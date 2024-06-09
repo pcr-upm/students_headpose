@@ -13,6 +13,8 @@ from images_framework.src.datasets import Database
 from images_framework.src.composite import Composite
 from images_framework.alignment.students_headpose.src.students_headpose import StudentsHeadpose
 from images_framework.alignment.students_headpose.src.load_db import load_annotations
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def parse_options():
