@@ -70,7 +70,6 @@ class StudentsHeadpose(Alignment):
         import torchsummary
         from images_framework.src.constants import Modes
         from images_framework.alignment.students_headpose.src.resnet_classifier import ResNetClassifier
-        from images_framework.alignment.students_headpose.src.efficientnet_classifier import EfficientnetClassifier
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
