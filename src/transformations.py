@@ -26,14 +26,6 @@ class Illumination:
         sample['img'] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
         return sample
 
-class Resize:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-
-    def __call__(self, sample):
-        sample['img'] = cv2.resize(sample['img'], (self.width, self.height), interpolation= cv2.INTER_LINEAR)
-        return sample
 
 class CropBbox:
     def __init__(self, width, height, bbox_scale):
@@ -58,8 +50,8 @@ class CropBbox:
         T[1, 0], T[1, 1], T[1, 2] = 0, 1, -bbox_enlarged[1]
         bbox_width = bbox_enlarged[2]-bbox_enlarged[0]
         bbox_height = bbox_enlarged[3]-bbox_enlarged[1]
-        face_translated = cv2.warpAffine(sample['img'], T, (int(round(bbox_width)), int(round(bbox_height))))
         S = np.matrix([[self.width/bbox_width, 0, 0], [0, self.height/bbox_height, 0]], dtype=float)
+        face_translated = cv2.warpAffine(sample['img'], T, (int(round(bbox_width)), int(round(bbox_height))))
         sample['img'] = cv2.warpAffine(face_translated, S, (self.width, self.height))
         return sample
 

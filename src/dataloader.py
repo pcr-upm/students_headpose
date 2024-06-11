@@ -6,13 +6,10 @@ __email__ = 'roberto.valle@upm.es'
 import cv2
 import numpy as np
 from enum import Enum
-import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
-from torchvision.transforms import v2
-from torchvision.io import read_image
 from scipy.spatial.transform import Rotation
-from images_framework.alignment.students_headpose.src.transformations import Illumination, CropBbox, ImgPermute, Resize
+from images_framework.alignment.students_headpose.src.transformations import Illumination, CropBbox, ImgPermute
 
 
 class Mode(Enum):
@@ -25,8 +22,8 @@ class MyDataset(Dataset):
     """
     Create a dataset class for our head pose estimation data sets.
     """
-    def __init__(self, anns, database, width, height, mode: Mode):
-        self.database = database
+    def __init__(self, anns, order, width, height, mode: Mode):
+        self.order = order
         self.width = width
         self.height = height
         self.mode = mode
@@ -49,10 +46,13 @@ class MyDataset(Dataset):
         # Load image
         # This is memory efficient because all the images are not stored in the memory at once but read as required
         image = cv2.imread(self.filepaths[idx], cv2.IMREAD_COLOR)
-        euler = Rotation.from_matrix(self.headpose[idx]).as_euler('YXZ', degrees=True)
+        euler = Rotation.from_matrix(self.headpose[idx]).as_euler(self.order, degrees=True)
         sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler}
+        # Composes several transforms together
         if self.mode == Mode.TRAIN:
-            ops = [CropBbox(self.width, self.height, 0.3), Illumination(), ImgPermute()]
+            ops = [Illumination(), CropBbox(self.width, self.height, 0.3), ImgPermute()]
+        elif self.mode == Mode.VALID:
+            ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         else:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         sample = transforms.Compose(ops)(sample)
