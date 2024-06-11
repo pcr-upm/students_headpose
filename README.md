@@ -43,5 +43,5 @@ usage: StudentsHeadpose [--gpu GPU] [--batch-size BATCH_SIZE] [--epochs EPOCHS] 
 
 * Use the --patience option to set number of epochs with no improvement after which training will be stopped.
 ```
-> python images_framework/alignment/students_headpose/test/students_headpose_test.py --input-data images_framework/alignment/students_headpose/test/example.tif --database aflw --gpu 0 --save-image
+> python images_framework/alignment/students_headpose/test/students_headpose_test.py --input-data images_framework/alignment/students_headpose/test/example.tif --database aflw --gpu 0 --backbone resnet --save-image
 ```
