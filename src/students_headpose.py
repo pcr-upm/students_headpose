@@ -101,7 +101,7 @@ class StudentsHeadpose(Alignment):
         if self.backbone is Backbone.RESNET:
             self.model = LitResNet(num_classes=3, version=self.version, optimizer='adam', lr=1e-4, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         elif self.backbone is Backbone.EFFICIENTNET:
-            self.model = LitEfficientNet(num_classes=3, version=self.version, optimizer='adam', lr=1e-4, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+            self.model = LitEfficientNet(num_classes=3, version=self.version, optimizer='adam', lr=1e-4, batch_size=self.batch_size, weights=True, tune_fc_only=False)
         else:
             raise ValueError('Backbone is not implemented')
         torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device='cpu')

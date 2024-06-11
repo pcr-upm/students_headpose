@@ -1,0 +1,52 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+__author__ = 'Roberto Valle'
+__email__ = 'roberto.valle@upm.es'
+
+import numpy as np
+from enum import Enum
+from torch.utils.data import Dataset
+from torchvision import io
+from scipy.spatial.transform import Rotation
+
+
+class Mode(Enum):
+    TRAIN = 'train'
+    VALID = 'valid'
+    TEST = 'test'
+
+
+class MyDataset(Dataset):
+    """
+    Create a dataset class for our head pose estimation data sets.
+    """
+    def __init__(self, anns, database, width, height, mode: Mode, weights=None):
+        self.database = database
+        self.width = width
+        self.height = height
+        self.mode = mode
+        self.preprocess = weights.transforms()
+        # Set data information
+        self.img_indices, self.obj_indices, self.filepaths, self.bboxes, self.headpose = [], [], [], [], []
+        for ann in anns:
+            for img_idx, img_ann in enumerate(ann.images):
+                for obj_idx, obj_ann in enumerate(img_ann.objects):
+                    self.img_indices.append(img_idx)
+                    self.obj_indices.append(obj_idx)
+                    self.filepaths.append(img_ann.filename)
+                    self.bboxes.append(np.array(obj_ann.bb))
+                    self.headpose.append(obj_ann.headpose)
+
+    def __len__(self):
+        # Returns the length of the dataset
+        return len(self.filepaths)
+
+    def __getitem__(self, idx):
+        # Load image
+        # This is memory efficient because all the images are not stored in the memory at once but read as required
+        image = io.read_image(self.filepaths[idx])
+        euler = Rotation.from_matrix(self.headpose[idx]).as_euler('YXZ', degrees=True)
+        sample = {'img': image, 'headpose': euler}
+        # Composes several transforms together
+        sample['img'] = self.preprocess(sample['img'])
+        return sample

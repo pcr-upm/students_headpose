@@ -17,7 +17,7 @@ class LitEfficientNet(pl.LightningModule):
     efficientnets = {0: models.efficientnet_v2_s}
     optimizers = {'adam': Adam, 'sgd': SGD}
 
-    def __init__(self, num_classes, version, optimizer='adam', lr=1e-3, batch_size=16, transfer=True, tune_fc_only=True):
+    def __init__(self, num_classes, version, optimizer='adam', lr=1e-3, batch_size=16, weights=None, tune_fc_only=True):
         super().__init__()
         self.num_classes = num_classes
         self.lr = lr
@@ -28,7 +28,7 @@ class LitEfficientNet(pl.LightningModule):
         # MAE metric
         self.mae = MeanAbsoluteError()
         # Using a pretrained backbone
-        self.model = self.efficientnets[version](pretrained=transfer)
+        self.model = self.efficientnets[version](weights=weights)
         # Replace old FC layer with Identity, so we can train our own
         num_ftrs = self.model.classifier[1].in_features
         self.model.classifier[1] = nn.Linear(in_features=num_ftrs, out_features=num_classes)
