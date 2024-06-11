@@ -88,7 +88,7 @@ class StudentsHeadpose(Alignment):
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/'), PCRLogger()]
         checkpoint_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
         early_stopping = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
-        trainer = pl.Trainer(logger=loggers, accelerator='auto', devices='auto', enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stopping])
+        trainer = pl.Trainer(logger=loggers, accelerator='auto', devices='auto', enable_progress_bar=True, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stopping])
         trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
 
     def load(self, mode):
@@ -98,6 +98,7 @@ class StudentsHeadpose(Alignment):
         from images_framework.alignment.students_headpose.src.lit_efficientnet import LitEfficientNet
         # Set up the neural network to train
         print('Load model')
+        torch.set_float32_matmul_precision('medium')
         if self.backbone is Backbone.RESNET:
             self.model = LitResNet(num_classes=3, version=self.version, optimizer='adam', lr=1e-4, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         elif self.backbone is Backbone.EFFICIENTNET:

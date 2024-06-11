@@ -26,6 +26,14 @@ class Illumination:
         sample['img'] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
         return sample
 
+class Resize:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+
+    def __call__(self, sample):
+        sample['img'] = cv2.resize(sample['img'], (self.width, self.height), interpolation= cv2.INTER_LINEAR)
+        return sample
 
 class CropBbox:
     def __init__(self, width, height, bbox_scale):
@@ -60,4 +68,18 @@ class ImgPermute:
     def __call__(self, sample):
         # Converts a numpy image in H x W x C format to C x W x H format and changes the range to [0, 1]
         sample['img'] = sample['img'].transpose(2, 0, 1) / 255.0
+        return sample
+
+class RotationRoll:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+
+    def __call__(self, sample):
+        #angle = np.random.uniform(-20, 20)
+        #angle = np.random.normal(-1.334593767872825, 13.296130953386198)
+        angle = np.random.normal(0, 15)
+        M = cv2.getRotationMatrix2D(((self.width-1)/2.0,(self.height-1)/2.0),angle,1)
+        sample['img'] = cv2.warpAffine(sample['img'],M,(self.width, self.height))
+        sample['headpose'][2] = sample['headpose'][2] + angle
         return sample
