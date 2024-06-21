@@ -58,15 +58,15 @@ class StudentsHeadpose(Alignment):
         self.device = torch.device('cuda:{}'.format(args.gpu[0]) if mode_gpu else 'cpu')
         self.backbone = Backbone(args.backbone)
         if self.backbone is Backbone.RESNET:
-            self.version = 50 if self.database in ['aflw'] else 18
-            self.width = 256 if self.database in ['aflw'] else 224
-            self.height = 256 if self.database in ['aflw'] else 224
+            self.version = 50 if self.database in ['aflw', '300wlp'] else 18
+            self.width = 256 if self.database in ['aflw', '300wlp'] else 224
+            self.height = 256 if self.database in ['aflw', '300wlp'] else 224
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
         if self.database in ['aflw', 'op3d12p']:
             self.order = 'YXZ'
-        elif self.database in ['300wlp', 'aflw2000']:
+        elif self.database in ['300wlp']:
             self.order = 'XYZ'
         else:
             raise ValueError('Database is not implemented')
