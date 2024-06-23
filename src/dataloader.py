@@ -9,7 +9,7 @@ from enum import Enum
 from torch.utils.data import Dataset
 from torchvision import transforms
 from scipy.spatial.transform import Rotation
-from images_framework.alignment.students_headpose.src.transformations import Illumination, CropBbox, ImgPermute
+from images_framework.alignment.students_headpose.src.transformations import Illumination, HorFlip, CropBbox, ImgPermute
 
 
 class Mode(Enum):
@@ -46,11 +46,12 @@ class MyDataset(Dataset):
         # Load image
         # This is memory efficient because all the images are not stored in the memory at once but read as required
         image = cv2.imread(self.filepaths[idx], cv2.IMREAD_COLOR)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         euler = Rotation.from_matrix(self.headpose[idx]).as_euler(self.order, degrees=True)
         sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler}
         # Composes several transforms together
         if self.mode == Mode.TRAIN:
-            ops = [Illumination(), CropBbox(self.width, self.height, 0.3), ImgPermute()]
+            ops = [Illumination(), HorFlip(), CropBbox(self.width, self.height, 0.3), ImgPermute()]
         elif self.mode == Mode.VALID:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         else:

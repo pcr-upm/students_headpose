@@ -30,7 +30,7 @@ class StudentsHeadpose(Alignment):
         self.model = None
         self.device = None
         self.backbone = None
-        self.version = 0
+        self.version = None
         self.batch_size = None
         self.epochs = None
         self.patience = None
@@ -57,10 +57,7 @@ class StudentsHeadpose(Alignment):
         mode_gpu = torch.cuda.is_available() and -1 not in args.gpu
         self.device = torch.device('cuda:{}'.format(args.gpu[0]) if mode_gpu else 'cpu')
         self.backbone = Backbone(args.backbone)
-        if self.backbone is Backbone.RESNET:
-            self.version = 50 if self.database in ['aflw', '300wlp'] else 18
-            self.width = 256 if self.database in ['aflw', '300wlp'] else 224
-            self.height = 256 if self.database in ['aflw', '300wlp'] else 224
+        self.version = 50 if self.backbone is Backbone.RESNET else 0
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
