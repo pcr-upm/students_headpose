@@ -35,8 +35,35 @@ class HorFlip:
         yaw, pitch, roll = sample['headpose']
         if np.random.uniform(0.0, 1.0) < 0.5:
             sample['img'] = cv2.flip(img, 1)
-            sample['bbox'] = np.array([img.shape[1]-bbox[2], bbox[1], img.shape[1]-bbox[0], bbox[3]])
+            sample['bbox'] = np.array([img.shape[1]-bbox[2], bbox[1], img.shape[1]-bbox[0], bbox[3]], dtype=np.float64)
             sample['headpose'] = np.array([-yaw, pitch, -roll])
+        return sample
+
+
+class SimTform:
+    def __init__(self, angle=20, translation=0.2, scale=0.15):
+        # Similarity transform has 4 degrees of freedom
+        self.angle = angle
+        self.translation = translation
+        self.scale = scale
+
+    def __call__(self, sample):
+        # Add scale and rotation
+        img = sample['img']
+        bbox = sample['bbox']
+        yaw, pitch, roll = sample['headpose']
+        center = ((bbox[0]+bbox[2])*0.5, (bbox[1]+bbox[3])*0.5)
+        rnd_scale = np.random.uniform(-self.scale, self.scale) + 1.0
+        rnd_angle = np.random.uniform(-self.angle, self.angle)
+        sim = cv2.getRotationMatrix2D(center, rnd_angle, rnd_scale)
+        sample['img'] = cv2.warpAffine(img, sim, (img.shape[1], img.shape[0]))
+        sample['headpose'] = np.array([yaw, pitch, roll-rnd_angle])
+        # Add translation
+        bbox_width = bbox[2]-bbox[0]
+        bbox_height = bbox[3]-bbox[1]
+        rnd_tx = np.random.uniform(-self.translation, self.translation)
+        rnd_ty = np.random.uniform(-self.translation, self.translation)
+        sample['bbox'] += np.array([bbox_width*rnd_tx, bbox_height*rnd_ty, bbox_width*rnd_tx, bbox_height*rnd_ty])
         return sample
 
 

@@ -9,7 +9,7 @@ from enum import Enum
 from torch.utils.data import Dataset
 from torchvision import transforms
 from scipy.spatial.transform import Rotation
-from images_framework.alignment.students_headpose.src.transformations import Illumination, HorFlip, CropBbox, ImgPermute
+from images_framework.alignment.students_headpose.src.transformations import Illumination, HorFlip, SimTform, CropBbox, ImgPermute
 
 
 class Mode(Enum):
@@ -51,9 +51,7 @@ class MyDataset(Dataset):
         sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler}
         # Composes several transforms together
         if self.mode == Mode.TRAIN:
-            ops = [Illumination(), HorFlip(), CropBbox(self.width, self.height, 0.3), ImgPermute()]
-        elif self.mode == Mode.VALID:
-            ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
+            ops = [Illumination(), HorFlip(), SimTform(20, 0.2, 0.15), CropBbox(self.width, self.height, 0.3), ImgPermute()]
         else:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         sample = transforms.Compose(ops)(sample)
