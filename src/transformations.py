@@ -9,20 +9,19 @@ from scipy.spatial.transform import Rotation
 
 
 class Illumination:
-    def __init__(self, hsv_range_min=(-0.5, -0.5, -0.5), hsv_range_max=(0.5, 0.5, 0.5)):
-        self.hsv_range_min = hsv_range_min
-        self.hsv_range_max = hsv_range_max
+    def __init__(self, hsv_range):
+        self.hsv_range = hsv_range
 
     def __call__(self, sample):
         # Convert to HSV colorspace from BGR colorspace
         hsv = cv2.cvtColor(sample['img'], cv2.COLOR_RGB2HSV)
         # Generate new random values
-        H = 1+np.random.uniform(self.hsv_range_min[0], self.hsv_range_max[0])
-        S = 1+np.random.uniform(self.hsv_range_min[1], self.hsv_range_max[1])
-        V = 1+np.random.uniform(self.hsv_range_min[2], self.hsv_range_max[2])
-        hsv[:, :, 0] = np.clip(H*hsv[:, :, 0], 0, 179)
-        hsv[:, :, 1] = np.clip(S*hsv[:, :, 1], 0, 255)
-        hsv[:, :, 2] = np.clip(V*hsv[:, :, 2], 0, 255)
+        rnd_hue = np.random.uniform(-self.hsv_range[0], self.hsv_range[0]) + 1.0
+        rnd_sat = np.random.uniform(-self.hsv_range[1], self.hsv_range[1]) + 1.0
+        rnd_val = np.random.uniform(-self.hsv_range[2], self.hsv_range[2]) + 1.0
+        hsv[:, :, 0] = np.clip(rnd_hue*hsv[:, :, 0], 0, 255)
+        hsv[:, :, 1] = np.clip(rnd_sat*hsv[:, :, 1], 0, 255)
+        hsv[:, :, 2] = np.clip(rnd_val*hsv[:, :, 2], 0, 255)
         # Convert back to BGR colorspace
         sample['img'] = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
         return sample
