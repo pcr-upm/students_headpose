@@ -5,6 +5,7 @@ __email__ = 'roberto.valle@upm.es'
 
 import cv2
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 
 class Illumination:
@@ -41,8 +42,9 @@ class HorFlip:
 
 
 class SimTform:
-    def __init__(self, angle=20, translation=0.2, scale=0.15):
+    def __init__(self, order, angle, translation, scale):
         # Similarity transform has 4 degrees of freedom
+        self.order = order
         self.angle = angle
         self.translation = translation
         self.scale = scale
@@ -51,13 +53,17 @@ class SimTform:
         # Add scale and rotation
         img = sample['img']
         bbox = sample['bbox']
-        yaw, pitch, roll = sample['headpose']
         center = ((bbox[0]+bbox[2])*0.5, (bbox[1]+bbox[3])*0.5)
         rnd_scale = np.random.uniform(-self.scale, self.scale) + 1.0
         rnd_angle = np.random.uniform(-self.angle, self.angle)
         sim = cv2.getRotationMatrix2D(center, rnd_angle, rnd_scale)
         sample['img'] = cv2.warpAffine(img, sim, (img.shape[1], img.shape[0]))
-        sample['headpose'] = np.array([yaw, pitch, roll-rnd_angle])
+        headpose = Rotation.from_euler(self.order, sample['headpose'], degrees=True).as_matrix()
+        angle = np.deg2rad(rnd_angle)
+        rot = np.array([[np.cos(angle), np.sin(angle), 0.0], [-np.sin(angle), np.cos(angle), 0.0], [0.0, 0.0, 1.0]])
+        aux = headpose.dot(rot)
+        euler = Rotation.from_matrix(aux).as_euler(self.order, degrees=True)
+        sample['headpose'] = np.array(euler)
         # Add translation
         bbox_width = bbox[2]-bbox[0]
         bbox_height = bbox[3]-bbox[1]

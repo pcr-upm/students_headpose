@@ -35,7 +35,7 @@ class MyDataset(Dataset):
                     self.img_indices.append(img_idx)
                     self.obj_indices.append(obj_idx)
                     self.filepaths.append(img_ann.filename)
-                    self.bboxes.append(np.array(obj_ann.bb))
+                    self.bboxes.append(np.array(obj_ann.bb, dtype=np.float64))
                     self.headpose.append(obj_ann.headpose)
 
     def __len__(self):
@@ -50,8 +50,8 @@ class MyDataset(Dataset):
         euler = Rotation.from_matrix(self.headpose[idx]).as_euler(self.order, degrees=True)
         sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler}
         # Composes several transforms together
-        if self.mode == Mode.TRAIN:
-            ops = [Illumination(), HorFlip(), SimTform(20, 0.2, 0.15), CropBbox(self.width, self.height, 0.3), ImgPermute()]
+        if self.mode is Mode.TRAIN:
+            ops = [Illumination(), HorFlip(), SimTform(self.order, 20, 0.2, 0.15), CropBbox(self.width, self.height, 0.3), ImgPermute()]
         else:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         sample = transforms.Compose(ops)(sample)
