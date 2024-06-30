@@ -50,7 +50,7 @@ class StudentsHeadpose(Alignment):
                             help='Number of images in each mini-batch.')
         parser.add_argument('--epochs', dest='epochs', type=int, default=200,
                             help='Number of sweeps over the dataset to train.')
-        parser.add_argument('--patience', dest='patience', type=int, default=10,
+        parser.add_argument('--patience', dest='patience', type=int, default=20,
                             help='Number of epochs with no improvement after which training will be stopped.')
         args, unknown = parser.parse_known_args(unknown)
         print(parser.format_usage())
@@ -95,8 +95,9 @@ class StudentsHeadpose(Alignment):
         from images_framework.alignment.students_headpose.src.lit_efficientnet import LitEfficientNet
         # Set up the neural network to train
         print('Load model')
+        torch.set_float32_matmul_precision('medium')
         if self.backbone is Backbone.RESNET:
-            self.model = LitResNet(num_classes=3, version=self.version, optimizer='adam', lr=1e-4, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+            self.model = LitResNet(num_classes=3, version=self.version, lr=1e-4, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         elif self.backbone is Backbone.EFFICIENTNET:
             self.model = LitEfficientNet(num_classes=3, version=self.version, optimizer='adam', lr=1e-4, batch_size=self.batch_size, weights=True, tune_fc_only=False)
         else:
