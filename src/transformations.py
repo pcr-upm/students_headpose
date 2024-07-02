@@ -28,15 +28,24 @@ class Illumination:
 
 
 class HorFlip:
+    def __init__(self, order):
+        self.order = order
+
     def __call__(self, sample):
         # Horizontal flipping
         img = sample['img']
         bbox = sample['bbox']
-        yaw, pitch, roll = sample['headpose']
         if np.random.uniform(0.0, 1.0) < 0.5:
             sample['img'] = cv2.flip(img, 1)
             sample['bbox'] = np.array([img.shape[1]-bbox[2], bbox[1], img.shape[1]-bbox[0], bbox[3]], dtype=np.float64)
-            sample['headpose'] = np.array([-yaw, pitch, -roll])
+            if self.order == 'YXZ':
+                yaw, pitch, roll = sample['headpose']
+                sample['headpose'] = np.array([-yaw, pitch, -roll])
+            elif self.order == 'XYZ':
+                pitch, yaw, roll = sample['headpose']
+                sample['headpose'] = np.array([pitch, -yaw, -roll])
+            else:
+                raise ValueError('Order is not implemented')
         return sample
 
 

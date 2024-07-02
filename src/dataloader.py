@@ -51,7 +51,7 @@ class MyDataset(Dataset):
         sample = {'filepath': self.filepaths[idx], 'img': image, 'idx_img': self.img_indices[idx], 'idx_obj': self.obj_indices[idx], 'bbox': self.bboxes[idx], 'headpose': euler}
         # Composes several transforms together
         if self.mode is Mode.TRAIN:
-            ops = [Illumination((0.015, 0.7, 0.4)), HorFlip(), SimTform(self.order, 20, 0.2, 0.15), CropBbox(self.width, self.height, 0.3), ImgPermute()]
+            ops = [Illumination((0.1, 0.2, 0.2)), HorFlip(self.order), SimTform(self.order, 5, 0.2, 0.1), CropBbox(self.width, self.height, 0.3), ImgPermute()]
         else:
             ops = [CropBbox(self.width, self.height, 0.3), ImgPermute()]
         sample = transforms.Compose(ops)(sample)
