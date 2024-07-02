@@ -41,8 +41,8 @@ class LitResNet(pl.LightningModule):
 
     def configure_optimizers(self):
         opt = SGD(self.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-6, nesterov=True)
-        lr_scheduler = {'scheduler': ReduceLROnPlateau(opt, 'min'), 'interval': 'epoch', 'monitor': 'val_loss', 'frequency': int(round(self.patience/4))}
-        return {'optimizer': opt, 'lr_scheduler': lr_scheduler}
+        scheduler = ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=int(round(self.patience/4)), verbose=True)
+        return {'optimizer': opt, 'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'}}
 
     def _step(self, batch):
         inputs = batch['img'].float()
@@ -61,6 +61,11 @@ class LitResNet(pl.LightningModule):
         loss = self._step(batch)
         # Perform logging
         self.log('val_loss', loss, batch_size=self.batch_size, on_step=False, on_epoch=True)
+
+    def on_validation_epoch_end(self):
+        lr = self.trainer.lr_scheduler_configs[0].scheduler.get_last_lr()[0]
+        # Perform logging
+        self.log('learning_rate', lr, batch_size=self.batch_size, on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
         loss = self._step(batch)
