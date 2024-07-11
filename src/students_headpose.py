@@ -105,7 +105,7 @@ class StudentsHeadpose(Alignment):
             self.model = LitEfficientNet(num_classes=3, version=self.version, lr=1e-4, patience=self.patience, batch_size=self.batch_size, weights=None, tune_fc_only=False)
         else:
             raise ValueError('Backbone is not implemented')
-        torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device=self.device)
+        torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device='cpu')
         # Set up the neural network to test
         if mode is Modes.TEST:
             model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
