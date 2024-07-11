@@ -1,13 +1,13 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
-__author__ = 'Iñigo Sanz'
-__email__ = 'inigo.sanz.torres@alumnos.upm.es'
+__author__ = 'Roberto Valle'
+__email__ = 'roberto.valle@upm.es'
 
 import torch.nn as nn
 import pytorch_lightning as pl
 import torchvision.models as models
-from torch.optim import SGD, Adam
-from torchmetrics.regression import MeanAbsoluteError
+from torch.optim import SGD
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 class LitEfficientNet(pl.LightningModule):
@@ -15,23 +15,21 @@ class LitEfficientNet(pl.LightningModule):
     Define a new class to turn the EfficientNet model that we want to use as a feature extractor.
     """
     efficientnets = {0: models.efficientnet_v2_s}
-    optimizers = {'adam': Adam, 'sgd': SGD}
 
-    def __init__(self, num_classes, version, optimizer='adam', lr=1e-3, batch_size=16, weights=None, tune_fc_only=True):
+    def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, weights=None, tune_fc_only=True):
         super().__init__()
         self.num_classes = num_classes
         self.lr = lr
+        self.patience = patience
         self.batch_size = batch_size
-        self.optimizer = self.optimizers[optimizer]
         # Loss criterion
-        self.loss_fn = nn.MSELoss()
-        # MAE metric
-        self.mae = MeanAbsoluteError()
-        # Using a pretrained backbone
+        self.loss_fn = nn.L1Loss()  # MAE metric
+        # Using a pretrained ResNet backbone
         self.model = self.efficientnets[version](weights=weights)
         # Replace old FC layer with Identity, so we can train our own
-        num_ftrs = self.model.classifier[1].in_features
-        self.model.classifier[1] = nn.Linear(in_features=num_ftrs, out_features=num_classes)
+        linear_size = self.model.classifier[1].in_features
+        # Replace final layer for fine-tuning
+        self.model.classifier[1] = nn.Linear(in_features=linear_size, out_features=num_classes)
         # Option to only tune the fully-connected layers
         if tune_fc_only:
             for child in list(self.model.children())[:-1]:
@@ -42,31 +40,34 @@ class LitEfficientNet(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        return self.optimizer(self.parameters(), lr=self.lr)
+        opt = SGD(self.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-6, nesterov=True)
+        scheduler = ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=int(round(self.patience/4)), verbose=True)
+        return {'optimizer': opt, 'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'}}
 
     def _step(self, batch):
         inputs = batch['img'].float()
         targets = batch['headpose'].float()
         outputs = self.model(inputs)
         loss = self.loss_fn(outputs, targets)
-        mae = self.mae(outputs, targets)
-        return loss, mae
+        return loss
 
     def training_step(self, batch, batch_idx):
-        loss, mae = self._step(batch)
+        loss = self._step(batch)
         # Perform logging
         self.log('train_loss', loss, batch_size=self.batch_size, on_step=False, on_epoch=True)
-        self.log('train_mae', mae, batch_size=self.batch_size, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss, mae = self._step(batch)
+        loss = self._step(batch)
         # Perform logging
         self.log('val_loss', loss, batch_size=self.batch_size, on_step=False, on_epoch=True)
-        self.log('val_mae', mae, batch_size=self.batch_size, on_step=False, on_epoch=True)
+
+    def on_validation_epoch_end(self):
+        lr = self.trainer.lr_scheduler_configs[0].scheduler.get_last_lr()[0]
+        # Perform logging
+        self.log('learning_rate', lr, batch_size=self.batch_size, on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
-        loss, mae = self._step(batch)
+        loss = self._step(batch)
         # Perform logging
         self.log('test_loss', loss, batch_size=self.batch_size, on_step=False, on_epoch=True)
-        self.log('test_mae', mae, batch_size=self.batch_size, on_step=False, on_epoch=True)
