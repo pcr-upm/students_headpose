@@ -37,6 +37,8 @@ usage: StudentsHeadpose [--gpu GPU] [--batch-size BATCH_SIZE] [--epochs EPOCHS] 
 
 * Use the --gpu option to set the GPU identifier (negative value indicates CPU mode).
 
+* Use the --backbone option to set the deep architecture.
+
 * Use the --batch-size option to set the number of images in each mini-batch.
 
 * Use the --epochs option to set the number of sweeps over the dataset to train.
