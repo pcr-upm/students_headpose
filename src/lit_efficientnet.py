@@ -14,9 +14,9 @@ class LitEfficientNet(pl.LightningModule):
     """
     Define a new class to turn the EfficientNet model that we want to use as a feature extractor.
     """
-    efficientnets = {0: models.efficientnet_v2_s}
+    efficientnets = {0: models.efficientnet_b4}
 
-    def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, weights=None, tune_fc_only=True):
+    def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True):
         super().__init__()
         self.num_classes = num_classes
         self.lr = lr
@@ -24,8 +24,8 @@ class LitEfficientNet(pl.LightningModule):
         self.batch_size = batch_size
         # Loss criterion
         self.loss_fn = nn.L1Loss()  # MAE metric
-        # Using a pretrained ResNet backbone
-        self.model = self.efficientnets[version](weights=weights)
+        # Using a pretrained EfficientNet backbone
+        self.model = self.efficientnets[version](weights='IMAGENET1K_V1' if transfer else None)
         # Replace old FC layer with Identity, so we can train our own
         linear_size = self.model.classifier[1].in_features
         # Replace final layer for fine-tuning
