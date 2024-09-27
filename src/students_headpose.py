@@ -92,7 +92,7 @@ class StudentsHeadpose(Alignment):
         trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
 
     def load(self, mode):
-        import torchsummary
+        import torchinfo
         from images_framework.src.constants import Modes
         from images_framework.alignment.students_headpose.src.lit_resnet import LitResNet
         from images_framework.alignment.students_headpose.src.lit_efficientnet import LitEfficientNet
@@ -106,7 +106,7 @@ class StudentsHeadpose(Alignment):
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
-        torchsummary.summary(self.model, input_size=(3, self.width, self.height), batch_size=self.batch_size, device=self.device.type)
+        torchinfo.summary(self.model, input_size=(self.batch_size, 3, self.width, self.height), device=self.device.type, col_names=['input_size', 'output_size', 'num_params', 'kernel_size'])
         # Set up the neural network to test
         if mode is Modes.TEST:
             model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
