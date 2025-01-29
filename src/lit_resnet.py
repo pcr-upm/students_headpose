@@ -16,20 +16,22 @@ class LitResNet(pl.LightningModule):
     """
     resnets = {18: models.resnet18, 34: models.resnet34, 50: models.resnet50, 101: models.resnet101, 152: models.resnet152}
 
-    def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True):
+    def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True,
+                 loss_fn=nn.L1Loss(), convert_6d=False):
         super().__init__()
         self.num_classes = num_classes
         self.lr = lr
         self.patience = patience
         self.batch_size = batch_size
         # Loss criterion
-        self.loss_fn = nn.L1Loss()  # MAE metric
+        self.loss_fn = loss_fn
         # Using a pretrained ResNet backbone
         self.model = self.resnets[version](pretrained=transfer)
         # Replace old FC layer with Identity, so we can train our own
         linear_size = list(self.model.children())[-1].in_features
         # Replace final layer for fine-tuning
         self.model.fc = nn.Linear(in_features=linear_size, out_features=num_classes)
+        self.convert_6d = convert_6d
         # Option to only tune the fully-connected layers
         if tune_fc_only:
             for child in list(self.model.children())[:-1]:
@@ -48,6 +50,8 @@ class LitResNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['headpose'].float()
         outputs = self.model(inputs)
+        if self.convert_6d:
+            outputs = outputs
         loss = self.loss_fn(outputs, targets)
         return loss
 

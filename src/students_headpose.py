@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from images_framework.src.alignment import Alignment
 from images_framework.alignment.students_headpose.src.pcrlogger import PCRLogger
 from images_framework.alignment.students_headpose.src.dataloader import MyDataset, Mode
+
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
 
@@ -20,10 +21,16 @@ class Backbone(Enum):
     EFFICIENTNET = 'efficientnet'
 
 
+class RotationModes(Enum):
+    EULER = 'euler'
+    SIXD = '6d'
+
+
 class StudentsHeadpose(Alignment):
     """
     Head pose estimation using a popular algorithm
     """
+
     def __init__(self, path):
         super().__init__()
         self.path = path
@@ -38,6 +45,7 @@ class StudentsHeadpose(Alignment):
         self.order = None
         self.width = 256
         self.height = 256
+        self.rotation_mode = None
 
     def parse_options(self, params):
         unknown = super().parse_options(params)
@@ -53,6 +61,9 @@ class StudentsHeadpose(Alignment):
                             help='Number of sweeps over the dataset to train.')
         parser.add_argument('--patience', dest='patience', type=int, default=20,
                             help='Number of epochs with no improvement after which training will be stopped.')
+        parser.add_argument('--rotation-mode', type=str, choices=[x.value for x in RotationModes],
+                            default=RotationModes.EULER.value,
+                            help='Internal pose parameterization of the network (default: euler).')
         args, unknown = parser.parse_known_args(unknown)
         print(parser.format_usage())
         mode_gpu = torch.cuda.is_available() and -1 not in args.gpu
@@ -63,6 +74,7 @@ class StudentsHeadpose(Alignment):
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
+        self.rotation_mode = args.rotation_mode
         if self.database in ['aflw', 'op3d12p', 'dad', 'all']:
             self.order = 'YXZ'
         elif self.database in ['300wlp', 'panoptic', 'aflw2000']:
@@ -78,18 +90,24 @@ class StudentsHeadpose(Alignment):
         dataset_train = MyDataset(anns_train, self.order, self.width, self.height, Mode.TRAIN)
         dataset_valid = MyDataset(anns_valid, self.order, self.width, self.height, Mode.VALID)
         drop_last = (len(dataset_train) % self.batch_size) == 1  # discard a last iteration with a single sample
-        dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=drop_last)
-        dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
+        dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True,
+                              drop_last=drop_last)
+        dl_valid = DataLoader(dataset_valid, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True,
+                              drop_last=False)
         # Train the model
         print('Train model')
         accelerator = 'gpu' if 'cuda' in str(self.device) else 'cpu'
         model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
-        ckpt_path = os.path.join(model_path+'ckpt/', 'last.ckpt')
-        loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path+'logs/', default_hp_metric=False), PCRLogger()]
+        ckpt_path = os.path.join(model_path + 'ckpt/', 'last.ckpt')
+        loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path + 'logs/', default_hp_metric=False), PCRLogger()]
         early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
-        ckpt_callback = ModelCheckpoint(dirpath=model_path+'ckpt/', filename='{epoch}-{val_loss:.5f}', monitor='val_loss', save_last=True, save_top_k=1)
-        trainer = pl.Trainer(accelerator=accelerator, devices=self.gpus, enable_progress_bar=False, max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None, logger=loggers, callbacks=[early_callback, ckpt_callback])
-        trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid, ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
+        ckpt_callback = ModelCheckpoint(dirpath=model_path + 'ckpt/', filename='{epoch}-{val_loss:.5f}',
+                                        monitor='val_loss', save_last=True, save_top_k=1)
+        trainer = pl.Trainer(accelerator=accelerator, devices=self.gpus, enable_progress_bar=False,
+                             max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None,
+                             logger=loggers, callbacks=[early_callback, ckpt_callback])
+        trainer.fit(model=self.model, train_dataloaders=dl_train, val_dataloaders=dl_valid,
+                    ckpt_path=ckpt_path if os.path.isfile(ckpt_path) else None)
 
     def load(self, mode):
         import torchinfo
@@ -99,29 +117,36 @@ class StudentsHeadpose(Alignment):
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
+        num_classes = 3 if self.rotation_mode == RotationModes.EULER.value else 6
         if self.backbone is Backbone.RESNET:
-            self.model = LitResNet(num_classes=3, version=self.version, lr=1e-4, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+            self.model = LitResNet(num_classes=num_classes, version=self.version, lr=1e-4, patience=self.patience,
+                                   batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         elif self.backbone is Backbone.EFFICIENTNET:
-            self.model = LitEfficientNet(num_classes=3, version=self.version, lr=1e-3, patience=self.patience, batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+            self.model = LitEfficientNet(num_classes=num_classes, version=self.version, lr=1e-3, patience=self.patience,
+                                         batch_size=self.batch_size, transfer=True, tune_fc_only=False)
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
-        torchinfo.summary(self.model, input_size=(self.batch_size, 3, self.width, self.height), device=self.device.type, col_names=['input_size', 'output_size', 'num_params', 'kernel_size'])
+        torchinfo.summary(self.model, input_size=(self.batch_size, 3, self.width, self.height), device=self.device.type,
+                          col_names=['input_size', 'output_size', 'num_params', 'kernel_size'])
         # Set up the neural network to test
         if mode is Modes.TEST:
             model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
             print('Loading model from {}'.format(model_path))
             if self.backbone is Backbone.RESNET:
-                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=3, version=self.version)
+                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
+                                                            num_classes=num_classes, version=self.version)
             elif self.backbone is Backbone.EFFICIENTNET:
-                self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path+'ckpt/', 'best.ckpt'), num_classes=3, version=self.version)
+                self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
+                                                                  num_classes=num_classes, version=self.version)
             self.model.eval()
 
     def process(self, ann, pred):
         from scipy.spatial.transform import Rotation
         # Prepare dataloader
         dataset_test = MyDataset([pred], self.order, self.width, self.height, Mode.TEST)
-        dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
+        dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True,
+                             drop_last=False)
         with torch.no_grad():
             for batch in dl_test:
                 # Generate prediction
