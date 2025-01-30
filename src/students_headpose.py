@@ -13,6 +13,7 @@ from images_framework.src.alignment import Alignment
 from images_framework.alignment.students_headpose.src.pcrlogger import PCRLogger
 from images_framework.alignment.students_headpose.src.dataloader import MyDataset, Mode
 from images_framework.alignment.students_headpose.src.losses import GeodesicLoss
+from images_framework.alignment.students_headpose.src.utils import convert_6d_to_rotation_matrix
 
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
@@ -37,8 +38,8 @@ class Losses(Enum):
 
 
 class RotationModes(Enum):
-    DEFAULT = ('default', 3)
-    SIXD = ('6d', 6)
+    DEFAULT = ('default', 3, None)
+    SIXD = ('6d', 6, convert_6d_to_rotation_matrix)
 
     @classmethod
     def from_name(cls, name):
@@ -69,6 +70,7 @@ class StudentsHeadpose(Alignment):
         self.width = 256
         self.height = 256
         self.rotation_mode = None
+        self.loss = None
 
     def parse_options(self, params):
         unknown = super().parse_options(params)
@@ -144,15 +146,14 @@ class StudentsHeadpose(Alignment):
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
-        convert_6d = self.rotation_mode[1] == 6
         if self.backbone is Backbone.RESNET:
             self.model = LitResNet(num_classes=self.rotation_mode[1], version=self.version, lr=1e-4,
                                    patience=self.patience, batch_size=self.batch_size, transfer=True,
-                                   tune_fc_only=False, convert_6d=convert_6d, loss_fn=self.loss.value[1])
+                                   tune_fc_only=False, conversion=self.rotation_mode[2], loss_fn=self.loss.value[1])
         elif self.backbone is Backbone.EFFICIENTNET:
             self.model = LitEfficientNet(num_classes=self.rotation_mode[1], version=self.version, lr=1e-3,
                                          patience=self.patience, batch_size=self.batch_size, transfer=True,
-                                         tune_fc_only=False, convert_6d=convert_6d, loss_fn=self.loss.value[1])
+                                         tune_fc_only=False, conversion=self.rotation_mode[2], loss_fn=self.loss.value[1])
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)

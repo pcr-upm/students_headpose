@@ -17,7 +17,7 @@ class LitEfficientNet(pl.LightningModule):
     efficientnets = {0: models.efficientnet_b4}
 
     def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True,
-                 loss_fn=nn.L1Loss(), convert_6d=False):
+                 loss_fn=nn.L1Loss(), conversion=None):
         super().__init__()
         self.num_classes = num_classes
         self.lr = lr
@@ -31,7 +31,7 @@ class LitEfficientNet(pl.LightningModule):
         linear_size = self.model.classifier[1].in_features
         # Replace final layer for fine-tuning
         self.model.classifier[1] = nn.Linear(in_features=linear_size, out_features=num_classes)
-        self.convert_6d = convert_6d
+        self.conversion = conversion
         # Option to only tune the fully-connected layers
         if tune_fc_only:
             for child in list(self.model.children())[:-1]:
@@ -51,8 +51,8 @@ class LitEfficientNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['headpose'].float()
         outputs = self.model(inputs)
-        if self.convert_6d:
-            outputs = convert_6d_to_rotation_matrix(outputs)
+        if self.conversion:
+            outputs = self.conversion(outputs)
         loss = self.loss_fn(outputs, targets)
         return loss
 
