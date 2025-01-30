@@ -47,11 +47,12 @@ class LitResNet(pl.LightningModule):
         return {'optimizer': opt, 'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'}}
 
     def _step(self, batch):
+        from images_framework.alignment.students_headpose.src.utils import convert_6d_to_rotation_matrix
         inputs = batch['img'].float()
         targets = batch['headpose'].float()
         outputs = self.model(inputs)
         if self.convert_6d:
-            outputs = outputs
+            outputs = convert_6d_to_rotation_matrix(outputs)
         loss = self.loss_fn(outputs, targets)
         return loss
 

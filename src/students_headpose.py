@@ -5,12 +5,14 @@ __email__ = 'roberto.valle@upm.es'
 
 import os
 import torch
+import torch.nn as nn
 import numpy as np
 from enum import Enum
 from torch.utils.data import DataLoader
 from images_framework.src.alignment import Alignment
 from images_framework.alignment.students_headpose.src.pcrlogger import PCRLogger
 from images_framework.alignment.students_headpose.src.dataloader import MyDataset, Mode
+from images_framework.alignment.students_headpose.src.losses import GeodesicLoss
 
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
@@ -21,9 +23,30 @@ class Backbone(Enum):
     EFFICIENTNET = 'efficientnet'
 
 
+class Losses(Enum):
+    DEFAULT = ('default', nn.L1Loss())
+    GEODESIC = ('geodesic', GeodesicLoss())
+
+    @classmethod
+    def from_name(cls, name):
+        for loss in cls:
+            if loss.value[0] == name:
+                return loss
+        print(f"No Losses found with name: {name}, using default")
+        return cls.DEFAULT
+
+
 class RotationModes(Enum):
-    EULER = 'euler'
-    SIXD = '6d'
+    DEFAULT = ('default', 3)
+    SIXD = ('6d', 6)
+
+    @classmethod
+    def from_name(cls, name):
+        for mode in cls:
+            if mode.value[0] == name:
+                return mode
+        print(f"No Losses found with name: {name}, using default")
+        return cls.DEFAULT
 
 
 class StudentsHeadpose(Alignment):
@@ -61,9 +84,12 @@ class StudentsHeadpose(Alignment):
                             help='Number of sweeps over the dataset to train.')
         parser.add_argument('--patience', dest='patience', type=int, default=20,
                             help='Number of epochs with no improvement after which training will be stopped.')
-        parser.add_argument('--rotation-mode', type=str, choices=[x.value for x in RotationModes],
-                            default=RotationModes.EULER.value,
+        parser.add_argument('--rotation-mode', type=str, choices=[x.value[0] for x in RotationModes],
+                            default=RotationModes.DEFAULT.value,
                             help='Internal pose parameterization of the network (default: euler).')
+        parser.add_argument('--loss', type=str, choices=[x.value[0] for x in Losses],
+                            default=Losses.DEFAULT.value,
+                            help='Loss function (default L1.')
         args, unknown = parser.parse_known_args(unknown)
         print(parser.format_usage())
         mode_gpu = torch.cuda.is_available() and -1 not in args.gpu
@@ -74,7 +100,8 @@ class StudentsHeadpose(Alignment):
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
-        self.rotation_mode = args.rotation_mode
+        self.rotation_mode = RotationModes.from_name(args.rotation_mode)
+        self.loss = Losses.from_name(args.loss)
         if self.database in ['aflw', 'op3d12p', 'dad', 'all']:
             self.order = 'YXZ'
         elif self.database in ['300wlp', 'panoptic', 'aflw2000']:
@@ -117,13 +144,15 @@ class StudentsHeadpose(Alignment):
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
-        num_classes = 3 if self.rotation_mode == RotationModes.EULER.value else 6
+        convert_6d = self.rotation_mode[1] == 6
         if self.backbone is Backbone.RESNET:
-            self.model = LitResNet(num_classes=num_classes, version=self.version, lr=1e-4, patience=self.patience,
-                                   batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+            self.model = LitResNet(num_classes=self.rotation_mode[1], version=self.version, lr=1e-4,
+                                   patience=self.patience, batch_size=self.batch_size, transfer=True,
+                                   tune_fc_only=False, convert_6d=convert_6d, loss_fn=self.loss.value[1])
         elif self.backbone is Backbone.EFFICIENTNET:
-            self.model = LitEfficientNet(num_classes=num_classes, version=self.version, lr=1e-3, patience=self.patience,
-                                         batch_size=self.batch_size, transfer=True, tune_fc_only=False)
+            self.model = LitEfficientNet(num_classes=self.rotation_mode[1], version=self.version, lr=1e-3,
+                                         patience=self.patience, batch_size=self.batch_size, transfer=True,
+                                         tune_fc_only=False, convert_6d=convert_6d, loss_fn=self.loss.value[1])
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
@@ -135,10 +164,11 @@ class StudentsHeadpose(Alignment):
             print('Loading model from {}'.format(model_path))
             if self.backbone is Backbone.RESNET:
                 self.model = LitResNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
-                                                            num_classes=num_classes, version=self.version)
+                                                            num_classes=self.rotation_mode[1], version=self.version)
             elif self.backbone is Backbone.EFFICIENTNET:
                 self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
-                                                                  num_classes=num_classes, version=self.version)
+                                                                  num_classes=self.rotation_mode[1],
+                                                                  version=self.version)
             self.model.eval()
 
     def process(self, ann, pred):
