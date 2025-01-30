@@ -127,10 +127,10 @@ class StudentsHeadpose(Alignment):
         print('Train model')
         accelerator = 'gpu' if 'cuda' in str(self.device) else 'cpu'
         model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
-        ckpt_path = os.path.join(model_path + 'ckpt/', 'last.ckpt')
+        ckpt_path = os.path.join(model_path + 'ckpt/', f'last{self.rotation_mode.val[1]}.ckpt')
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path + 'logs/', default_hp_metric=False), PCRLogger()]
         early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
-        ckpt_callback = ModelCheckpoint(dirpath=model_path + 'ckpt/', filename='{epoch}-{val_loss:.5f}',
+        ckpt_callback = ModelCheckpoint(dirpath=model_path + 'ckpt/', filename='{epoch}-{val_loss:.5f}' + self.rotation_mode.val[1],
                                         monitor='val_loss', save_last=True, save_top_k=1)
         trainer = pl.Trainer(accelerator=accelerator, devices=self.gpus, enable_progress_bar=False,
                              max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None,
@@ -164,10 +164,10 @@ class StudentsHeadpose(Alignment):
             model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
             print('Loading model from {}'.format(model_path))
             if self.backbone is Backbone.RESNET:
-                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
+                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', f'best{self.rotation_mode.value[1]}.ckpt'),
                                                             num_classes=self.rotation_mode[1], version=self.version)
             elif self.backbone is Backbone.EFFICIENTNET:
-                self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
+                self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', f'best{self.rotation_mode.value[1]}.ckpt'),
                                                                   num_classes=self.rotation_mode[1],
                                                                   version=self.version)
             self.model.eval()
