@@ -147,13 +147,13 @@ class StudentsHeadpose(Alignment):
         print('Load model')
         torch.set_float32_matmul_precision('medium')
         if self.backbone is Backbone.RESNET:
-            self.model = LitResNet(num_classes=self.rotation_mode[1], version=self.version, lr=1e-4,
+            self.model = LitResNet(num_classes=self.rotation_mode.value[1], version=self.version, lr=1e-4,
                                    patience=self.patience, batch_size=self.batch_size, transfer=True,
-                                   tune_fc_only=False, conversion=self.rotation_mode[2], loss_fn=self.loss.value[1])
+                                   tune_fc_only=False, conversion=self.rotation_mode.value[2], loss_fn=self.loss.value[1])
         elif self.backbone is Backbone.EFFICIENTNET:
             self.model = LitEfficientNet(num_classes=self.rotation_mode[1], version=self.version, lr=1e-3,
                                          patience=self.patience, batch_size=self.batch_size, transfer=True,
-                                         tune_fc_only=False, conversion=self.rotation_mode[2], loss_fn=self.loss.value[1])
+                                         tune_fc_only=False, conversion=self.rotation_mode.value[2], loss_fn=self.loss.value[1])
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
