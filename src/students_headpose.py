@@ -45,7 +45,7 @@ class RotationModes(Enum):
         for mode in cls:
             if mode.value[0] == name:
                 return mode
-        print(f"No Losses found with name: {name}, using default")
+        print(f"No Rotations found with name: {name}, using default")
         return cls.DEFAULT
 
 
