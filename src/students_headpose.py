@@ -4,16 +4,18 @@ __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
 import os
+from enum import Enum
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from enum import Enum
 from torch.utils.data import DataLoader
-from images_framework.src.alignment import Alignment
-from images_framework.alignment.students_headpose.src.pcrlogger import PCRLogger
+
 from images_framework.alignment.students_headpose.src.dataloader import MyDataset, Mode
 from images_framework.alignment.students_headpose.src.losses import GeodesicLoss
-from images_framework.alignment.students_headpose.src.utils import convert_6d_to_rotation_matrix
+from images_framework.alignment.students_headpose.src.pcrlogger import PCRLogger
+from images_framework.src.alignment import Alignment
+from images_framework.alignment.students_headpose.src.pose_representations import PoseRepresentation, PoseRepresentationFactory, PoseLossCalculator, PoseLossCalculatorFactory, EulerPose, L1LossCalculator, ConversionParams
 
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
@@ -22,32 +24,6 @@ np.random.seed(42)
 class Backbone(Enum):
     RESNET = 'resnet'
     EFFICIENTNET = 'efficientnet'
-
-
-class Losses(Enum):
-    DEFAULT = ('default', nn.L1Loss())
-    GEODESIC = ('geodesic', GeodesicLoss())
-
-    @classmethod
-    def from_name(cls, name):
-        for loss in cls:
-            if loss.value[0] == name:
-                return loss
-        print(f"No Losses found with name: {name}, using default")
-        return cls.DEFAULT
-
-
-class RotationModes(Enum):
-    DEFAULT = ('default', 3, None)
-    SIXD = ('6d', 6, convert_6d_to_rotation_matrix)
-
-    @classmethod
-    def from_name(cls, name):
-        for mode in cls:
-            if mode.value[0] == name:
-                return mode
-        print(f"No Rotations found with name: {name}, using default")
-        return cls.DEFAULT
 
 
 class StudentsHeadpose(Alignment):
@@ -69,8 +45,8 @@ class StudentsHeadpose(Alignment):
         self.order = None
         self.width = 256
         self.height = 256
-        self.rotation_mode = None
-        self.loss = None
+        self.loss_calculator = None
+        self.pose = None
 
     def parse_options(self, params):
         unknown = super().parse_options(params)
@@ -86,12 +62,12 @@ class StudentsHeadpose(Alignment):
                             help='Number of sweeps over the dataset to train.')
         parser.add_argument('--patience', dest='patience', type=int, default=20,
                             help='Number of epochs with no improvement after which training will be stopped.')
-        parser.add_argument('--rotation-mode', type=str, choices=[x.value[0] for x in RotationModes],
-                            default=RotationModes.DEFAULT.value,
-                            help='Internal pose parameterization of the network (default: euler).')
-        parser.add_argument('--loss', type=str, choices=[x.value[0] for x in Losses],
-                            default=Losses.DEFAULT.value,
-                            help='Loss function (default L1.')
+        parser.add_argument('--pose', type=str, choices=[x.name for x in PoseRepresentation.__subclasses__()],
+                            default=EulerPose.name,
+                            help=f'Internal pose parameterization of the network (default: {EulerPose.name}).')
+        parser.add_argument('--loss', type=str, choices=[x.name for x in PoseLossCalculator.__subclasses__()],
+                            default=L1LossCalculator.name,
+                            help=f'Loss function (default {L1LossCalculator.name}.')
         args, unknown = parser.parse_known_args(unknown)
         print(parser.format_usage())
         mode_gpu = torch.cuda.is_available() and -1 not in args.gpu
@@ -102,14 +78,16 @@ class StudentsHeadpose(Alignment):
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
-        self.rotation_mode = RotationModes.from_name(args.rotation_mode)
-        self.loss = Losses.from_name(args.loss)
         if self.database in ['aflw', 'op3d12p', 'dad', 'all']:
             self.order = 'YXZ'
         elif self.database in ['300wlp', 'panoptic', 'aflw2000']:
             self.order = 'XYZ'
         else:
             raise ValueError('Database is not implemented')
+        params = ConversionParams(order=self.order, device=self.device)
+        self.pose = PoseRepresentationFactory.create_pose_representation(args.pose, params)
+        pose_target = PoseRepresentationFactory.create_pose_representation(EulerPose.name, params)
+        self.loss_calculator = PoseLossCalculatorFactory.create_loss_calculator(args.loss, self.pose, pose_target)
 
     def train(self, anns_train, anns_valid):
         import pytorch_lightning as pl
@@ -126,11 +104,11 @@ class StudentsHeadpose(Alignment):
         # Train the model
         print('Train model')
         accelerator = 'gpu' if 'cuda' in str(self.device) else 'cpu'
-        model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
-        ckpt_path = os.path.join(model_path + 'ckpt/', f'last{self.rotation_mode.val[1]}.ckpt')
+        model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/' + self.pose.name + '/'
+        ckpt_path = os.path.join(model_path + 'ckpt/', 'last.ckpt')
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path + 'logs/', default_hp_metric=False), PCRLogger()]
         early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
-        ckpt_callback = ModelCheckpoint(dirpath=model_path + 'ckpt/', filename='{epoch}-{val_loss:.5f}' + self.rotation_mode.val[1],
+        ckpt_callback = ModelCheckpoint(dirpath=model_path + 'ckpt/', filename='{epoch}-{val_loss:.5f}',
                                         monitor='val_loss', save_last=True, save_top_k=1)
         trainer = pl.Trainer(accelerator=accelerator, devices=self.gpus, enable_progress_bar=False,
                              max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None,
@@ -147,13 +125,13 @@ class StudentsHeadpose(Alignment):
         print('Load model')
         torch.set_float32_matmul_precision('medium')
         if self.backbone is Backbone.RESNET:
-            self.model = LitResNet(num_classes=self.rotation_mode.value[1], version=self.version, lr=1e-4,
+            self.model = LitResNet(num_classes=self.pose.num_classes, version=self.version, lr=1e-4,
                                    patience=self.patience, batch_size=self.batch_size, transfer=True,
-                                   tune_fc_only=False, conversion=self.rotation_mode.value[2], loss_fn=self.loss.value[1])
+                                   tune_fc_only=False, loss_calculator=self.loss_calculator)
         elif self.backbone is Backbone.EFFICIENTNET:
-            self.model = LitEfficientNet(num_classes=self.rotation_mode[1], version=self.version, lr=1e-3,
+            self.model = LitEfficientNet(num_classes=self.pose.num_classes, version=self.version, lr=1e-3,
                                          patience=self.patience, batch_size=self.batch_size, transfer=True,
-                                         tune_fc_only=False, conversion=self.rotation_mode.value[2], loss_fn=self.loss.value[1])
+                                         tune_fc_only=False, loss_calculator=self.loss_calculator)
         else:
             raise ValueError('Backbone is not implemented')
         self.model.to(self.device)
@@ -164,11 +142,11 @@ class StudentsHeadpose(Alignment):
             model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
             print('Loading model from {}'.format(model_path))
             if self.backbone is Backbone.RESNET:
-                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', f'best{self.rotation_mode.value[1]}.ckpt'),
-                                                            num_classes=self.rotation_mode[1], version=self.version)
+                self.model = LitResNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
+                                                            num_classes=self.pose.num_classes, version=self.version)
             elif self.backbone is Backbone.EFFICIENTNET:
-                self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', f'best{self.rotation_mode.value[1]}.ckpt'),
-                                                                  num_classes=self.rotation_mode[1],
+                self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
+                                                                  num_classes=self.pose.num_classes,
                                                                   version=self.version)
             self.model.eval()
 
