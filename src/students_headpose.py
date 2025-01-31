@@ -104,7 +104,7 @@ class StudentsHeadpose(Alignment):
         # Train the model
         print('Train model')
         accelerator = 'gpu' if 'cuda' in str(self.device) else 'cpu'
-        model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/' + self.pose.name + '/'
+        model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/' + self.pose.name + '/' + self.loss_calculator.name + '/'
         ckpt_path = os.path.join(model_path + 'ckpt/', 'last.ckpt')
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path + 'logs/', default_hp_metric=False), PCRLogger()]
         early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
@@ -139,15 +139,15 @@ class StudentsHeadpose(Alignment):
                           col_names=['input_size', 'output_size', 'num_params', 'kernel_size'])
         # Set up the neural network to test
         if mode is Modes.TEST:
-            model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/'
+            model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/' + self.pose.name + '/' + self.loss_calculator.name + '/'
             print('Loading model from {}'.format(model_path))
             if self.backbone is Backbone.RESNET:
                 self.model = LitResNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
-                                                            num_classes=self.pose.num_classes, version=self.version)
+                                                            num_classes=self.pose.num_classes, version=self.version, loss_calculator=self.loss_calculator)
             elif self.backbone is Backbone.EFFICIENTNET:
                 self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
                                                                   num_classes=self.pose.num_classes,
-                                                                  version=self.version)
+                                                                  version=self.version, loss_calculator=self.loss_calculator)
             self.model.eval()
 
     def process(self, ann, pred):
@@ -159,7 +159,7 @@ class StudentsHeadpose(Alignment):
         with torch.no_grad():
             for batch in dl_test:
                 # Generate prediction
-                euler = self.model(batch['img'].float().to(self.device)).squeeze().cpu().numpy()
+                output = self.model(batch['img'].float().to(self.device)).squeeze().cpu().numpy()
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
-                obj_pred.headpose = Rotation.from_euler(self.order, euler, degrees=True).as_matrix()
+                obj_pred.headpose = self.pose.convert_to_rotation_matrix(output)

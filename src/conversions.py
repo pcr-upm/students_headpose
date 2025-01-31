@@ -26,12 +26,10 @@ def convert_euler_tensor_to_rotation_matrix(tensor, device, order):
 
 
 def convert_rotation_matrix_to_euler(matrix, order, device, degrees=True):
-    # Convert the rotation matrix to a numpy array
-    matrix_np = matrix.cpu().numpy()
-    # Create a Rotation object from the rotation matrix
-    rotation = Rotation.from_matrix(matrix_np)
+    # Detach the tensor from the computation graph and convert to numpy array
+    rotation = Rotation.from_matrix(matrix.detach().cpu().numpy())
     # Convert the Rotation object to Euler angles
     euler_angles = rotation.as_euler(order, degrees=degrees)
     # Convert the Euler angles back to a tensor
-    euler_tensor = torch.tensor(euler_angles, dtype=torch.float32).to(device)
+    euler_tensor = torch.tensor(euler_angles, dtype=torch.float32, requires_grad=matrix.requires_grad).to(device)
     return euler_tensor
