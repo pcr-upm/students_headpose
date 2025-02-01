@@ -27,16 +27,16 @@ class MyDataset(Dataset):
     """
     Create a dataset class for our head pose estimation data sets.
     """
-    def __init__(self, anns, order, width, height, mode: Mode, bg_train_file=None):
+    def __init__(self, anns, order, width, height, mode: Mode, bg_train_folder=None):
         self.order = order
         self.width = width
         self.height = height
         self.mode = mode
         # Set data information
         self.img_indices, self.obj_indices, self.filepaths, self.bboxes, self.headpose = [], [], [], [], []
-        self.bg_train_file = bg_train_file
+        self.bg_train_folder = bg_train_folder
         self.bg_transformation = []
-        if self.bg_train_file:
+        if self.bg_train_folder:
             self.__setup_bg_images()
         for ann in anns:
             for img_idx, img_ann in enumerate(ann.images):
@@ -68,27 +68,13 @@ class MyDataset(Dataset):
         return sample
 
     def __setup_bg_images(self):
-        bg_parent_folder = os.path.dirname(self.bg_train_file)
-        bg_parent_folder = os.path.join(bg_parent_folder, 'train')
-        try:
-            with open(os.path.join(self.bg_train_file), 'r', encoding='utf-8') as f:
-                self.bg_image_file_names = [
-                    os.path.join(bg_parent_folder, line.strip()) for line in f.readlines()
-                    if line.strip() and not line.startswith('#')
-                ]
-                if not self.bg_image_file_names:
-                    print(f"Warning: File {self.bg_train_file} is empty")
-
-        except FileNotFoundError:
-            raise FileNotFoundError(f"File {self.bg_train_file} not found") from None
-        except UnicodeDecodeError:
-            raise IOError(f"Codification error reading file {self.bg_train_file}") from None
-        except Exception as e:
-            raise IOError(f"Unexpected error reading file {self.bg_train_file}: {str(e)}") from None
+        self.bg_image_file_names = []
+        for root, _, files in os.walk(self.bg_train_folder):
+            for file in files:
+                if file.lower().endswith((".jpg", ".jpeg", ".png", ".bmp", ".tiff")):
+                    self.bg_image_file_names.append(os.path.join(root, file))
 
         self.seed = secrets.randbelow(2**32)
         print('Using seed:', self.seed)
         random.seed(self.seed)
-        random.shuffle(self.bg_image_file_names)
-        self.bg_image_file_names = cycle(self.bg_image_file_names)
         self.bg_transformation = [BgSubstitution(self.bg_image_file_names)]

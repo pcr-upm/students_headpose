@@ -47,7 +47,7 @@ class StudentsHeadpose(Alignment):
         self.height = 256
         self.loss_calculator = None
         self.pose = None
-        self.bg_file = None
+        self.bg_dir = None
 
     def parse_options(self, params):
         unknown = super().parse_options(params)
@@ -69,8 +69,8 @@ class StudentsHeadpose(Alignment):
         parser.add_argument('--loss', type=str, choices=[x.name for x in PoseLossCalculator.__subclasses__()],
                             default=L1LossCalculator.name,
                             help=f'Loss function (default {L1LossCalculator.name}.')
-        parser.add_argument('--bg-file', dest='bg_file', required=False,
-                            help='Background substitution file.', default=None)
+        parser.add_argument('--bg-dir', dest='bg_dir', required=False,
+                            help='Background substitution directory.', default=None)
         args, unknown = parser.parse_known_args(unknown)
         print(parser.format_usage())
         mode_gpu = torch.cuda.is_available() and -1 not in args.gpu
@@ -91,14 +91,14 @@ class StudentsHeadpose(Alignment):
         self.pose = PoseRepresentationFactory.create_pose_representation(args.pose, params)
         pose_target = PoseRepresentationFactory.create_pose_representation(EulerPose.name, params)
         self.loss_calculator = PoseLossCalculatorFactory.create_loss_calculator(args.loss, self.pose, pose_target)
-        self.bg_file = args.bg_file
+        self.bg_dir = args.bg_dir
 
     def train(self, anns_train, anns_valid):
         import pytorch_lightning as pl
         from pytorch_lightning import loggers as pl_loggers
         from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
         # Prepare dataloaders
-        dataset_train = MyDataset(anns_train, self.order, self.width, self.height, Mode.TRAIN, bg_train_file=self.bg_file)
+        dataset_train = MyDataset(anns_train, self.order, self.width, self.height, Mode.TRAIN, bg_train_folder=self.bg_dir)
         dataset_valid = MyDataset(anns_valid, self.order, self.width, self.height, Mode.VALID)
         drop_last = (len(dataset_train) % self.batch_size) == 1  # discard a last iteration with a single sample
         dl_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True,

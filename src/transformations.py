@@ -4,6 +4,7 @@ __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
 import os.path
+import random
 
 import cv2
 import numpy as np
@@ -131,9 +132,8 @@ class BgSubstitution:
         self.bg_images_file_names = bg_images_file_names
 
     def __call__(self, sample):
-        bg_image_path = next(self.bg_images_file_names)
+        bg_image_path = random.choice(self.bg_images_file_names)
         bg_image = cv2.imread(bg_image_path, cv2.IMREAD_COLOR)
-        bg_image = cv2.cvtColor(bg_image, cv2.COLOR_BGR2RGB)
         matting_mask_path = self.__get_matting_mask(sample['filepath'])
         matting_mask = cv2.imread(matting_mask_path, cv2.IMREAD_GRAYSCALE)
         sample['img'] = self.__composite_images(sample['img'], bg_image, matting_mask)
@@ -141,11 +141,17 @@ class BgSubstitution:
 
     @staticmethod
     def __composite_images(img, bg_img, alpha):
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = img.astype(np.float32) / 255.0
         # Convert alpha to 3-channel format
         alpha = np.stack([alpha] * 3, axis=-1)
+        alpha = alpha.astype(np.float32) / 255.0
 
+        bg_img =  cv2.resize(bg_img, (img.shape[1], img.shape[0]))
+        bg_img = bg_img.astype(np.float32) / 255.0
         # Composite the images
         composite = alpha * img + (1 - alpha) * bg_img
+        composite = (composite * 255).astype(np.uint8)
         return composite
 
     @staticmethod
@@ -157,5 +163,3 @@ class BgSubstitution:
         if not os.path.exists(matting_filename_dir):
             raise ValueError(f"Matting mask {matting_filename_dir} not found for {img_path}")
         return matting_filename_dir
-
-
