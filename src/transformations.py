@@ -3,6 +3,8 @@
 __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
+import os.path
+
 import cv2
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -122,3 +124,38 @@ class ImgPermute:
         # Converts a numpy image in H x W x C format to C x W x H format and changes the range to [0, 1]
         sample['img'] = sample['img'].transpose(2, 0, 1) / 255.0
         return sample
+
+
+class BgSubstitution:
+    def __init__(self, bg_images_file_names):
+        self.bg_images_file_names = bg_images_file_names
+
+    def __call__(self, sample):
+        bg_image_path = next(self.bg_images_file_names)
+        bg_image = cv2.imread(bg_image_path, cv2.IMREAD_COLOR)
+        bg_image = cv2.cvtColor(bg_image, cv2.COLOR_BGR2RGB)
+        matting_mask_path = self.__get_matting_mask(sample['filepath'])
+        matting_mask = cv2.imread(matting_mask_path, cv2.IMREAD_GRAYSCALE)
+        sample['img'] = self.__composite_images(sample['img'], bg_image, matting_mask)
+        return sample
+
+    @staticmethod
+    def __composite_images(img, bg_img, alpha):
+        # Convert alpha to 3-channel format
+        alpha = np.stack([alpha] * 3, axis=-1)
+
+        # Composite the images
+        composite = alpha * img + (1 - alpha) * bg_img
+        return composite
+
+    @staticmethod
+    def __get_matting_mask(img_path):
+        directory, filename = os.path.split(img_path)
+        name, ext = os.path.splitext(filename)
+        matting_filename = f"{name}-matting{ext}"
+        matting_filename_dir = os.path.join(directory, matting_filename)
+        if not os.path.exists(matting_filename_dir):
+            raise ValueError(f"Matting mask {matting_filename_dir} not found for {img_path}")
+        return matting_filename_dir
+
+

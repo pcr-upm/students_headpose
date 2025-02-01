@@ -1,4 +1,6 @@
 from abc import ABC, ABCMeta, abstractmethod
+from typing import Dict, Type
+
 import images_framework.alignment.students_headpose.src.conversions as conversions
 from images_framework.alignment.students_headpose.src.losses import GeodesicLoss
 import torch.nn as nn
@@ -18,7 +20,11 @@ class SingletonMeta(ABCMeta):
 
 class PoseRepresentation(ABC, metaclass=SingletonMeta):
 
-    name = None
+    @classmethod
+    @abstractmethod
+    def name(cls) -> str:
+        """Abstract property for representation name"""
+        pass
 
     def __init__(self, params, num_classes=None):
         self._num_classes = num_classes
@@ -73,16 +79,31 @@ class SixDPose(PoseRepresentation):
 
 
 class PoseRepresentationFactory:
-    @staticmethod
-    def create_pose_representation(name, params):
-        for pose_representation in PoseRepresentation.__subclasses__():
-            if pose_representation.name == name:
-                return pose_representation(params)
-        raise ValueError(f"Unknown pose representation: {name}")
+    """Factory with registry pattern and better error reporting."""
+
+    _registry: Dict[str, Type[PoseRepresentation]] = {
+        cls.name: cls for cls in PoseRepresentation.__subclasses__()
+    }
+
+    @classmethod
+    def create_pose_representation(cls, name: str, params: ConversionParams) -> PoseRepresentation:
+        """Create pose representation instance with validation."""
+        try:
+            representation_class = cls._registry[name.lower()]
+        except KeyError:
+            available = ", ".join(cls._registry.keys())
+            raise ValueError(f"Unknown pose representation: {name}. Available: {available}")
+
+        return representation_class(params)
 
 
 class PoseLossCalculator(ABC, metaclass=SingletonMeta):
-    name = None
+
+    @classmethod
+    @abstractmethod
+    def name(cls) -> str:
+        """Abstract property for representation name"""
+        pass
 
     def __init__(self, pose_representation_output, pose_representation_target, loss=None):
         self.pose_representation_output = pose_representation_output
@@ -94,7 +115,7 @@ class PoseLossCalculator(ABC, metaclass=SingletonMeta):
         pass
 
 class GeodesicLossCalculator(PoseLossCalculator):
-    name = 'Geodesic'
+    name = 'geodesic'
 
     def __init__(self, pose_representation_output, pose_representation_target):
         super().__init__(pose_representation_output, pose_representation_target, GeodesicLoss())
@@ -105,7 +126,7 @@ class GeodesicLossCalculator(PoseLossCalculator):
         return self.loss(outputs, targets)
 
 class L1LossCalculator(PoseLossCalculator):
-    name = 'L1'
+    name = 'l1'
 
     def __init__(self, pose_representation_output, pose_representation_target):
         super().__init__(pose_representation_output, pose_representation_target, nn.L1Loss())
@@ -115,10 +136,26 @@ class L1LossCalculator(PoseLossCalculator):
         targets = self.pose_representation_target.convert_to_rotation_euler(targets)
         return self.loss(outputs, targets)
 
+
 class PoseLossCalculatorFactory:
-    @staticmethod
-    def create_loss_calculator(name, pose_representation_output, pose_representation_target):
-        for subclass in PoseLossCalculator.__subclasses__():
-            if subclass.name == name:
-                return subclass(pose_representation_output, pose_representation_target)
-        raise ValueError(f"Unknown loss calculator: {name}")
+    """Factory with registry pattern and better error handling."""
+
+    _registry: Dict[str, Type[PoseLossCalculator]] = {
+        cls.name: cls for cls in PoseLossCalculator.__subclasses__()
+    }
+
+    @classmethod
+    def create_loss_calculator(
+            cls,
+            name: str,
+            output_rep: PoseRepresentation,
+            target_rep: PoseRepresentation
+    ) -> PoseLossCalculator:
+        """Create loss calculator instance with validation."""
+        try:
+            calculator_class = cls._registry[name.lower()]
+        except KeyError:
+            available = ", ".join(cls._registry.keys())
+            raise ValueError(f"Unknown loss calculator: {name}. Available: {available}")
+
+        return calculator_class(output_rep, target_rep)
