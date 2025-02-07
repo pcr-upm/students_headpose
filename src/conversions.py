@@ -2,23 +2,17 @@ import torch
 from scipy.spatial.transform import Rotation
 import torch.nn.functional as F
 
+
 # Y. Zhou et al., "On the Continuity of Rotation Representations in Neural Networks"
 # https://github.com/papagina/RotationContinuity
-def convert_6d_to_rotation_matrix(poses):
-    x_raw = poses[:, 0:3]  # batch*3
-    y_raw = poses[:, 3:6]  # batch*3
+def convert_6d_to_rotation_matrix(d6):
+    a1, a2 = d6[..., :3], d6[..., 3:]
+    b1 = F.normalize(a1, dim=-1)
+    b2 = a2 - (b1 * a2).sum(-1, keepdim=True) * b1
+    b2 = F.normalize(b2, dim=-1)
+    b3 = torch.cross(b1, b2, dim=-1)
+    return torch.stack((b1, b2, b3), dim=-2)
 
-    eps = torch.finfo(poses.dtype).eps
-    x = F.normalize(x_raw, dim=1, eps=eps)  # batch*3
-    z = torch.cross(x, y_raw, dim=1)  # batch*3
-    z = F.normalize(z, dim=1, eps=eps)  # batch*3
-    y = torch.cross(z, x, dim=1)  # batch*3
-
-    x = x.view(-1, 3, 1)
-    y = y.view(-1, 3, 1)
-    z = z.view(-1, 3, 1)
-    matrix = torch.cat((x, y, z), 2)  # batch*3*3
-    return matrix
 
 def convert_euler_tensor_to_rotation_matrix(tensor, device, order):
     rotations = Rotation.from_euler(order, tensor.cpu(), degrees=True).as_matrix()
