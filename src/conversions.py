@@ -15,8 +15,8 @@ def convert_6d_to_rotation_matrix(d6):
 
 
 def convert_euler_tensor_to_rotation_matrix(tensor, device, order):
-    rotations = Rotation.from_euler(order, tensor.cpu(), degrees=True).as_matrix()
-    return torch.tensor(rotations, dtype=torch.float32).to(device=device)
+    rotations = Rotation.from_euler(order, tensor.detach().cpu().numpy(), degrees=True)
+    return torch.tensor(rotations, dtype=torch.float32, requires_grad=tensor.requires_grad).to(device)
 
 
 def convert_rotation_matrix_to_euler(matrix, order, device, degrees=True):
