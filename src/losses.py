@@ -20,7 +20,8 @@ def _geodesic_distance(rot_mat_1: torch.Tensor, rot_mat_2: torch.Tensor) -> torc
     cos = torch.clamp(cos, -1 + eps, 1 - eps)
 
     # Geodesic angle in radians
-    return torch.acos(cos)
+    radians = torch.acos(cos)
+    return torch.rad2deg(radians)
 
 
 class GeodesicLoss(torch.nn.Module):
