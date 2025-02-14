@@ -163,7 +163,7 @@ class StudentsHeadpose(Alignment):
         with torch.no_grad():
             for batch in dl_test:
                 # Generate prediction
-                output = self.model(batch['img'].float().to(self.device)).squeeze().cpu().numpy()
+                output = self.model(batch['img'].float().to(self.device))
                 # Save prediction
                 obj_pred = pred.images[batch['idx_img']].objects[batch['idx_obj']]
                 obj_pred.headpose = self.pose.convert_to_rotation_matrix(output)
