@@ -147,11 +147,11 @@ class StudentsHeadpose(Alignment):
             print('Loading model from {}'.format(model_path))
             if self.backbone is Backbone.RESNET:
                 self.model = LitResNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
-                                                            num_classes=self.pose.num_classes, version=self.version, loss_calculator=self.loss_calculator)
+                                                            num_classes=self.pose.num_classes, version=self.version, loss_calculator=self.loss_calculator, map_location=self.device)
             elif self.backbone is Backbone.EFFICIENTNET:
                 self.model = LitEfficientNet.load_from_checkpoint(os.path.join(model_path + 'ckpt/', 'best.ckpt'),
                                                                   num_classes=self.pose.num_classes,
-                                                                  version=self.version, loss_calculator=self.loss_calculator)
+                                                                  version=self.version, loss_calculator=self.loss_calculator, map_location=self.device)
             self.model.eval()
 
     def process(self, ann, pred):
