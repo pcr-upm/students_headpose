@@ -39,8 +39,23 @@ class LitResNet(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        opt = SGD(self.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-6, nesterov=True)
-        scheduler = ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=int(round(self.patience/4)))
+        opt = SGD(
+            self.parameters(),
+            lr=self.lr,
+            momentum=0.9,
+            weight_decay=1e-4,
+            nesterov=True
+        )
+
+        scheduler = ReduceLROnPlateau(
+            opt,
+            mode='min',
+            factor=0.5,
+            patience=self.patience,
+            threshold=1e-3,
+            min_lr=1e-6
+        )
+
         return {'optimizer': opt, 'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'}}
 
     def _step(self, batch):
