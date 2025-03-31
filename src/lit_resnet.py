@@ -6,7 +6,7 @@ __email__ = 'roberto.valle@upm.es'
 import pytorch_lightning as pl
 import torch.nn as nn
 import torchvision.models as models
-from torch.optim import SGD
+from torch.optim import SGD, lr_scheduler, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
@@ -39,24 +39,28 @@ class LitResNet(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        opt = SGD(
+        optimizer = AdamW(
             self.parameters(),
-            lr=self.lr,
-            momentum=0.9,
+            lr=1e-3,
+            betas=(0.9, 0.999),
             weight_decay=1e-4,
-            nesterov=True
+            eps=1e-8
         )
 
-        scheduler = ReduceLROnPlateau(
-            opt,
-            mode='min',
-            factor=0.5,
-            patience=self.patience,
-            threshold=1e-3,
-            min_lr=1e-6
+        scheduler = lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=3e-3,
+            total_steps=self.trainer.estimated_stepping_batches,
+            pct_start=0.1,
         )
 
-        return {'optimizer': opt, 'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'}}
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step"
+            }
+        }
 
     def _step(self, batch):
         inputs = batch['img'].float()
