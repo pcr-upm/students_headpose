@@ -81,7 +81,7 @@ class StudentsHeadpose(Alignment):
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.patience = args.patience
-        if self.database in ['aflw', 'op3d12p', 'dad', 'all']:
+        if self.database in ['aflw', 'op3d12p', 'dad', 'all', 'agora']:
             self.order = 'YXZ'
         elif self.database in ['300wlp', 'panoptic', 'aflw2000']:
             self.order = 'XYZ'
