@@ -85,6 +85,8 @@ class StudentsHeadpose(Alignment):
             self.order = 'YXZ'
         elif self.database in ['300wlp', 'panoptic', 'aflw2000', 'agora']:
             self.order = 'XYZ'
+        elif self.database in ['agora']:
+            self.order = 'ZYX'
         else:
             raise ValueError('Database is not implemented')
         params = ConversionParams(order=self.order, device=self.device)
