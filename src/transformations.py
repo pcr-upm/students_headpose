@@ -135,6 +135,9 @@ class BgSubstitution:
         bg_image_path = random.choice(self.bg_images_file_names)
         bg_image = cv2.imread(bg_image_path, cv2.IMREAD_COLOR)
         matting_mask_path = self.__get_matting_mask(sample['filepath'])
+        if matting_mask_path is None:
+            print(f"Matting mask not found for {sample['filepath']}")
+            return sample
         matting_mask = cv2.imread(matting_mask_path, cv2.IMREAD_GRAYSCALE)
         sample['img'] = self.__composite_images(sample['img'], bg_image, matting_mask)
         return sample
@@ -161,5 +164,5 @@ class BgSubstitution:
         matting_filename = f"{name}-matting{ext}"
         matting_filename_dir = os.path.join(directory, matting_filename)
         if not os.path.exists(matting_filename_dir):
-            raise ValueError(f"Matting mask {matting_filename_dir} not found for {img_path}")
+            return None
         return matting_filename_dir
