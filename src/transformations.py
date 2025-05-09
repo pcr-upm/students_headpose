@@ -128,16 +128,22 @@ class ImgPermute:
 
 
 class BgSubstitution:
-    def __init__(self, bg_images_file_names):
+    def __init__(self, bg_images_file_names, substitution_probability=0.75):
         self.bg_images_file_names = bg_images_file_names
+        self.substitution_probability = substitution_probability
 
     def __call__(self, sample):
-        bg_image_path = random.choice(self.bg_images_file_names)
-        bg_image = cv2.imread(bg_image_path, cv2.IMREAD_COLOR)
+        if random.uniform(0, 1) > self.substitution_probability:
+            print("Background substitution not applied")
+            return sample
+
         matting_mask_path = self.__get_matting_mask(sample['filepath'])
         if matting_mask_path is None:
             print(f"Matting mask not found for {sample['filepath']}")
             return sample
+
+        bg_image_path = random.choice(self.bg_images_file_names)
+        bg_image = cv2.imread(bg_image_path, cv2.IMREAD_COLOR)
         matting_mask = cv2.imread(matting_mask_path, cv2.IMREAD_GRAYSCALE)
         sample['img'] = self.__composite_images(sample['img'], bg_image, matting_mask)
         return sample
