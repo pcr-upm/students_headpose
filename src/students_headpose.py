@@ -111,9 +111,9 @@ class StudentsHeadpose(Alignment):
         model_path = self.path + 'data/' + self.database + '/' + self.backbone.value + '/' + self.pose.name + '/' + self.loss_calculator.name + '/'
         ckpt_path = os.path.join(model_path + 'ckpt/', 'last.ckpt')
         loggers = [pl_loggers.TensorBoardLogger(save_dir=model_path + 'logs/', default_hp_metric=False), PCRLogger()]
-        early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience)
+        early_callback = EarlyStopping(monitor='val_loss', mode='min', patience=self.patience, verbose=True)
         ckpt_callback = ModelCheckpoint(dirpath=model_path + 'ckpt/', filename='{epoch}-{val_loss:.5f}',
-                                        monitor='val_loss', save_last=True, save_top_k=1)
+                                        monitor='val_loss', save_last=True, save_top_k=1, enable_version_counter=False)
         trainer = pl.Trainer(accelerator=accelerator, devices=self.gpus, enable_progress_bar=False,
                              max_epochs=self.epochs, precision=32, deterministic=True, gradient_clip_val=None,
                              logger=loggers, callbacks=[early_callback, ckpt_callback])
