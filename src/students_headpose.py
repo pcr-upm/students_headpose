@@ -83,7 +83,7 @@ class StudentsHeadpose(Alignment):
         self.patience = args.patience
         if self.database in ['aflw', 'op3d12p', 'dad', 'all']:
             self.order = 'YXZ'
-        elif self.database in ['300wlp', 'panoptic', 'aflw2000', 'agora']:
+        elif self.database in ['300wlp', 'panoptic', 'aflw2000', 'agora', 'agora+panoptic']:
             self.order = 'XYZ'
         else:
             raise ValueError('Database is not implemented')
