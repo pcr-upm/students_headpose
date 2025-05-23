@@ -121,7 +121,7 @@ class StudentsHeadpose(Alignment):
         from scipy.spatial.transform import Rotation
         # Prepare dataloader
         dataset_test = MyDataset([pred], self.order, self.width, self.height, Mode.TEST)
-        dl_test = DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
+        dl_test = DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=4, pin_memory=True, drop_last=False)
         with torch.no_grad():
             for batch in dl_test:
                 # Generate prediction
