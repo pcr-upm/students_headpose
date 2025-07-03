@@ -39,28 +39,16 @@ class LitResNet(pl.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        optimizer = AdamW(
+        opt  = AdamW(
             self.parameters(),
-            lr=1e-3,
+            lr=self.lr,
             betas=(0.9, 0.999),
             weight_decay=1e-4,
             eps=1e-8
         )
 
-        scheduler = lr_scheduler.OneCycleLR(
-            optimizer,
-            max_lr=3e-3,
-            total_steps=self.trainer.estimated_stepping_batches,
-            pct_start=0.1,
-        )
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "interval": "step"
-            }
-        }
+        scheduler = ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=int(round(self.patience / 4)))
+        return {'optimizer': opt, 'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'}}
 
     def _step(self, batch):
         inputs = batch['img'].float()
