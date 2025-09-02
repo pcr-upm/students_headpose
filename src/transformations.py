@@ -3,6 +3,9 @@
 __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
+import os.path
+import random
+
 import cv2
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -122,3 +125,50 @@ class ImgPermute:
         # Converts a numpy image in H x W x C format to C x W x H format and changes the range to [0, 1]
         sample['img'] = sample['img'].transpose(2, 0, 1) / 255.0
         return sample
+
+
+class BgSubstitution:
+    def __init__(self, bg_images_file_names, substitution_probability=0.75):
+        self.bg_images_file_names = bg_images_file_names
+        self.substitution_probability = substitution_probability
+
+    def __call__(self, sample):
+        if random.uniform(0, 1) > self.substitution_probability:
+            print("Background substitution not applied")
+            return sample
+
+        matting_mask_path = self.__get_matting_mask(sample['filepath'])
+        if matting_mask_path is None:
+            print(f"Matting mask not found for {sample['filepath']}")
+            return sample
+
+        bg_image_path = random.choice(self.bg_images_file_names)
+        bg_image = cv2.imread(bg_image_path, cv2.IMREAD_COLOR)
+        matting_mask = cv2.imread(matting_mask_path, cv2.IMREAD_GRAYSCALE)
+        sample['img'] = self.__composite_images(sample['img'], bg_image, matting_mask)
+        return sample
+
+    @staticmethod
+    def __composite_images(img, bg_img, alpha):
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = img.astype(np.float32) / 255.0
+        # Convert alpha to 3-channel format
+        alpha = np.stack([alpha] * 3, axis=-1)
+        alpha = alpha.astype(np.float32) / 255.0
+
+        bg_img =  cv2.resize(bg_img, (img.shape[1], img.shape[0]))
+        bg_img = bg_img.astype(np.float32) / 255.0
+        # Composite the images
+        composite = alpha * img + (1 - alpha) * bg_img
+        composite = (composite * 255).astype(np.uint8)
+        return composite
+
+    @staticmethod
+    def __get_matting_mask(img_path):
+        directory, filename = os.path.split(img_path)
+        name, ext = os.path.splitext(filename)
+        matting_filename = f"{name}-matting{ext}"
+        matting_filename_dir = os.path.join(directory, matting_filename)
+        if not os.path.exists(matting_filename_dir):
+            return None
+        return matting_filename_dir

@@ -3,8 +3,8 @@
 __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
-import torch.nn as nn
 import pytorch_lightning as pl
+import torch.nn as nn
 import torchvision.models as models
 from torch.optim import SGD
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -16,20 +16,20 @@ class LitEfficientNet(pl.LightningModule):
     """
     efficientnets = {0: models.efficientnet_b4}
 
-    def __init__(self, num_classes, version, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True):
+    def __init__(self, num_classes, version, loss_calculator, lr=1e-3, patience=20, batch_size=16, transfer=True, tune_fc_only=True):
         super().__init__()
         self.num_classes = num_classes
         self.lr = lr
         self.patience = patience
         self.batch_size = batch_size
         # Loss criterion
-        self.loss_fn = nn.L1Loss()  # MAE metric
         # Using a pretrained EfficientNet backbone
         self.model = self.efficientnets[version](weights='IMAGENET1K_V1' if transfer else None)
         # Replace old FC layer with Identity, so we can train our own
         linear_size = self.model.classifier[1].in_features
         # Replace final layer for fine-tuning
         self.model.classifier[1] = nn.Linear(in_features=linear_size, out_features=num_classes)
+        self.loss_calculator = loss_calculator
         # Option to only tune the fully-connected layers
         if tune_fc_only:
             for child in list(self.model.children())[:-1]:
@@ -48,8 +48,7 @@ class LitEfficientNet(pl.LightningModule):
         inputs = batch['img'].float()
         targets = batch['headpose'].float()
         outputs = self.model(inputs)
-        loss = self.loss_fn(outputs, targets)
-        return loss
+        return self.loss_calculator.calculate_loss(outputs, targets)
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
