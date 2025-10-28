@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from images_framework.src.constants import Modes
 from images_framework.src.datasets import Database
 from images_framework.src.composite import Composite
-from images_framework.alignment.students_headpose.src.students_headpose import StudentsHeadpose
+from src.students_headpose import StudentsHeadpose
 
 
 def parse_options():
@@ -67,7 +67,7 @@ def main():
     unknown, anns_file = parse_options()
     # Load computer vision components
     composite = Composite()
-    sa = StudentsHeadpose('images_framework/alignment/students_headpose/')
+    sa = StudentsHeadpose('')
     composite.add(sa)
 
     composite.parse_options(unknown)

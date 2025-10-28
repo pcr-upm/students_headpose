@@ -4,13 +4,15 @@ __author__ = 'Roberto Valle'
 __email__ = 'roberto.valle@upm.es'
 
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 import torch
 import numpy as np
 from enum import Enum
 from torch.utils.data import DataLoader
 from images_framework.src.alignment import Alignment
-from images_framework.alignment.students_headpose.src.pcrlogger import PCRLogger
-from images_framework.alignment.students_headpose.src.dataloader import MyDataset, Mode
+from src.pcrlogger import PCRLogger
+from src.dataloader import MyDataset, Mode
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
 
