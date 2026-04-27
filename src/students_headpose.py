@@ -96,8 +96,8 @@ class StudentsHeadpose(Alignment):
     def load(self, mode):
         import torchinfo
         from images_framework.src.constants import Modes
-        from images_framework.alignment.students_headpose.src.lit_resnet import LitResNet
-        from images_framework.alignment.students_headpose.src.lit_efficientnet import LitEfficientNet
+        from images_framework.regression.headpose.students_headpose.src.lit_resnet import LitResNet
+        from images_framework.regression.headpose.students_headpose.src.lit_efficientnet import LitEfficientNet
         # Set up the neural network to train
         print('Load model')
         torch.set_float32_matmul_precision('medium')
