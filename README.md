@@ -38,5 +38,5 @@ usage: StudentsHeadpose [--gpu GPU] --backbone {resnet,efficientnet} [--batch-si
 
 * Use the --patience option to set number of epochs with no improvement after which training will be stopped.
 ```
-> python test/students_headpose_test.py --input-data test/example.tif --database aflw --gpu 0 --backbone resnet --save-image
+> python test/students_headpose_test.py --input-data test/example.tif --database 300wlp --gpu 0 --backbone resnet --save-image
 ```
