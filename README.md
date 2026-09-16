@@ -1,13 +1,7 @@
 # Head pose estimation for PCR students
 
 #### Requisites
-- images-framework
-- tqdm
-- torch
-- pytorch-lightning
-- torchvision
-- torch-summary
-- tensorboard
+The required dependencies are installed in the [`Dockerfile`](./Dockerfile#L33).
 
 #### Usage
 ```

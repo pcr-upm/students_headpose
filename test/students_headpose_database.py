@@ -12,10 +12,10 @@ import numpy as np
 from tqdm import tqdm
 import importlib.util
 from pathlib import Path
-from images_framework.src.constants import Modes
-from images_framework.src.datasets import Database
-from images_framework.src.composite import Composite
-from images_framework.src.viewer import Viewer
+from pcr_framework.src.constants import Modes
+from pcr_framework.src.datasets import Database
+from pcr_framework.src.composite import Composite
+from pcr_framework.src.viewer import Viewer
 from src.students_headpose import StudentsHeadpose
 
 

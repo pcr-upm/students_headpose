@@ -10,7 +10,7 @@ import torch
 import numpy as np
 from enum import Enum
 from torch.utils.data import DataLoader
-from images_framework.src.alignment import Alignment
+from pcr_framework.src.alignment import Alignment
 from src.pcrlogger import PCRLogger
 from src.dataloader import MyDataset, Mode
 os.environ['PYTHONHASHSEED'] = '0'
@@ -95,7 +95,7 @@ class StudentsHeadpose(Alignment):
 
     def load(self, mode):
         import torchinfo
-        from images_framework.src.constants import Modes
+        from pcr_framework.src.constants import Modes
         from src.lit_resnet import LitResNet
         from src.lit_efficientnet import LitEfficientNet
         # Set up the neural network to train
